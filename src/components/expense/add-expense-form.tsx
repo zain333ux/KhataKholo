@@ -45,6 +45,7 @@ export function AddExpenseForm({
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function uploadReceipt(file: File) {
     if (!file.type.startsWith("image/")) {
       setReceiptStatus("Please choose an image file.");

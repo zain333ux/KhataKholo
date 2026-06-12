@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { KeyRound, LogOut, Shield, UsersRound } from "lucide-react";
+import { KeyRound, Shield, UsersRound } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { PinChangeForm } from "@/components/auth/pin-change-form";

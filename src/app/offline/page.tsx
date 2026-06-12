@@ -14,7 +14,7 @@ export default function OfflinePage() {
       {/* App mark */}
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">KhataKholo</p>
-        <h1 className="mt-1 text-2xl font-extrabold text-slate-900">You're offline</h1>
+        <h1 className="mt-1 text-2xl font-extrabold text-slate-900">You&apos;re offline</h1>
         <p className="mt-2 max-w-xs text-sm text-slate-500">
           No internet connection right now. Your data is safe — reconnect to sync your khata.
         </p>

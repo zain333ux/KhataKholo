@@ -1,7 +1,7 @@
 // generate-icons.mjs
 // Generates PNG icons for PWA from SVG source using sharp
 import sharp from "sharp";
-import { writeFileSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
