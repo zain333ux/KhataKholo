@@ -1,0 +1,153 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { isValidPin, normalizeLoginId, normalizePhone } from "@/lib/auth/credentials";
+import { hashPin } from "@/lib/auth/pin";
+import { requireAdmin, requireCurrentRoommate } from "@/lib/auth/session";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  actionError,
+  actionSuccess,
+  getRequiredText,
+  getText,
+  type ActionState,
+} from "@/lib/validators/forms";
+import type { RoommateRole } from "@/types/app";
+
+export async function addRoommateAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const current = await requireCurrentRoommate();
+    requireAdmin(current);
+
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      throw new Error("Supabase is not configured yet.");
+    }
+
+    const name = getRequiredText(formData, "name", "Name");
+    const loginId = normalizeLoginId(getRequiredText(formData, "loginId", "Username or phone"));
+    const phone = normalizePhone(getText(formData, "phone"));
+    const pin = getRequiredText(formData, "pin", "PIN");
+    const role = (getText(formData, "role") || "member") as RoommateRole;
+
+    if (!["admin", "member"].includes(role)) {
+      throw new Error("Invalid role.");
+    }
+
+    if (!isValidPin(pin)) {
+      throw new Error("PIN must be exactly 6 digits.");
+    }
+
+    const { error } = await supabase.from("roommates").insert({
+      group_id: current.group_id,
+      name,
+      login_id: loginId,
+      phone,
+      pin_hash: await hashPin(pin),
+      role,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidatePath("/admin/roommates");
+    return actionSuccess("Roommate added.");
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+export async function updateRoommateAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const current = await requireCurrentRoommate();
+    requireAdmin(current);
+
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      throw new Error("Supabase is not configured yet.");
+    }
+
+    const roommateId = getRequiredText(formData, "roommateId", "Roommate");
+    const name = getRequiredText(formData, "name", "Name");
+    const phone = normalizePhone(getText(formData, "phone"));
+    const role = (getText(formData, "role") || "member") as RoommateRole;
+
+    if (!["admin", "member"].includes(role)) {
+      throw new Error("Invalid role.");
+    }
+
+    const { error } = await supabase
+      .from("roommates")
+      .update({ name, phone, role })
+      .eq("id", roommateId)
+      .eq("group_id", current.group_id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidatePath("/admin/roommates");
+    return actionSuccess("Roommate updated.");
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+export async function deactivateRoommateAction(formData: FormData) {
+  const current = await requireCurrentRoommate();
+  requireAdmin(current);
+
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase is not configured yet.");
+  }
+
+  const roommateId = getRequiredText(formData, "roommateId", "Roommate");
+  if (roommateId === current.id) {
+    throw new Error("You cannot remove yourself.");
+  }
+
+  await supabase
+    .from("roommates")
+    .update({ is_active: false })
+    .eq("id", roommateId)
+    .eq("group_id", current.group_id);
+
+  revalidatePath("/admin/roommates");
+}
+
+export async function resetRoommatePinAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const current = await requireCurrentRoommate();
+    requireAdmin(current);
+
+    const supabase = await createServerSupabaseClient();
+    if (!supabase) {
+      throw new Error("Supabase is not configured yet.");
+    }
+
+    const roommateId = getRequiredText(formData, "roommateId", "Roommate");
+    const newPin = getRequiredText(formData, "newPin", "New PIN");
+
+    if (!isValidPin(newPin)) {
+      throw new Error("PIN must be exactly 6 digits.");
+    }
+
+    const { error } = await supabase
+      .from("roommates")
+      .update({ pin_hash: await hashPin(newPin) })
+      .eq("id", roommateId)
+      .eq("group_id", current.group_id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return actionSuccess("PIN reset.");
+  } catch (error) {
+    return actionError(error);
+  }
+}
+

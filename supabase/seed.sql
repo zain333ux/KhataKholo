@@ -1,0 +1,5 @@
+-- Optional local seed.
+-- The app normally creates rooms and roommates from the UI:
+-- 1. Run the migration in supabase/migrations/001_initial_schema.sql.
+-- 2. Open /create-room and create the first admin roommate.
+-- Email-based auth is not used; PINs are hashed in public.roommates.pin_hash.

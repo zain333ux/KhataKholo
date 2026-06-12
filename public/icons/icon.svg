@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="KhataKholo icon">
+  <rect width="512" height="512" rx="96" fill="#047857"/>
+  <rect x="116" y="92" width="280" height="328" rx="34" fill="#f8fafc"/>
+  <path d="M168 168h176M168 230h176M168 292h116" stroke="#0f172a" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="338" cy="338" r="44" fill="#f59e0b"/>
+  <path d="M320 338h36" stroke="#0f172a" stroke-width="18" stroke-linecap="round"/>
+</svg>

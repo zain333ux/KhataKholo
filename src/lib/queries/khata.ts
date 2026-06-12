@@ -1,0 +1,166 @@
+import "server-only";
+
+import { notFound } from "next/navigation";
+
+import { requireCurrentRoommate } from "@/lib/auth/session";
+import { getActiveRoommatesForGroup, makeRoommateNameMap } from "@/lib/queries/roommates";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { Balance, Expense, Payment, Reminder, RoommateListItem } from "@/types/app";
+
+export type KhataItem = {
+  balance: Balance;
+  otherRoommate: Pick<RoommateListItem, "id" | "name" | "phone">;
+  direction: "i_owe" | "owes_me";
+  amountPaisa: number;
+};
+
+export type PairHistoryEvent = {
+  id: string;
+  type: "expense" | "payment" | "reminder";
+  title: string;
+  body: string;
+  amountPaisa: number;
+  createdAt: string;
+};
+
+export type PairHistory = {
+  otherRoommate: Pick<RoommateListItem, "id" | "name" | "phone" | "login_id">;
+  balance: KhataItem | null;
+  events: PairHistoryEvent[];
+};
+
+export async function getMyKhata(): Promise<KhataItem[]> {
+  const current = await requireCurrentRoommate();
+  const supabase = await createServerSupabaseClient();
+  const roommates = await getActiveRoommatesForGroup(current.group_id);
+  const names = makeRoommateNameMap(roommates);
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("balances")
+    .select("*")
+    .eq("group_id", current.group_id)
+    .gt("amount_paisa", 0)
+    .or(`debtor_roommate_id.eq.${current.id},creditor_roommate_id.eq.${current.id}`)
+    .order("updated_at", { ascending: false });
+
+  return ((data ?? []) as Balance[]).map((balance) => {
+    const otherRoommateId =
+      balance.debtor_roommate_id === current.id ? balance.creditor_roommate_id : balance.debtor_roommate_id;
+
+    return {
+      balance,
+      otherRoommate: names[otherRoommateId] ?? {
+        id: otherRoommateId,
+        name: "Roommate",
+        phone: null,
+      },
+      direction: balance.debtor_roommate_id === current.id ? "i_owe" : "owes_me",
+      amountPaisa: balance.amount_paisa,
+    };
+  });
+}
+
+export async function getPrivatePairHistory(otherRoommateId: string): Promise<PairHistory> {
+  const current = await requireCurrentRoommate();
+  const supabase = await createServerSupabaseClient();
+
+  if (!supabase) {
+    notFound();
+  }
+
+  const roommates = await getActiveRoommatesForGroup(current.group_id);
+  const otherRoommate = roommates.find((roommate) => roommate.id === otherRoommateId);
+
+  if (!otherRoommate) {
+    notFound();
+  }
+
+  const myKhata = await getMyKhata();
+  const balance = myKhata.find((item) => item.otherRoommate.id === otherRoommateId) ?? null;
+
+  const { data: paymentsData } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("group_id", current.group_id)
+    .or(
+      `and(from_roommate_id.eq.${current.id},to_roommate_id.eq.${otherRoommateId}),and(from_roommate_id.eq.${otherRoommateId},to_roommate_id.eq.${current.id})`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const { data: remindersData } = await supabase
+    .from("reminders")
+    .select("*")
+    .eq("group_id", current.group_id)
+    .or(
+      `and(from_roommate_id.eq.${current.id},to_roommate_id.eq.${otherRoommateId}),and(from_roommate_id.eq.${otherRoommateId},to_roommate_id.eq.${current.id})`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const { data: myExpenseMembers } = await supabase
+    .from("expense_members")
+    .select("expense_id")
+    .eq("roommate_id", current.id)
+    .limit(100);
+
+  const myExpenseIds = (myExpenseMembers ?? []).map((member) => member.expense_id);
+  const { data: otherExpenseMembers } = myExpenseIds.length > 0
+    ? await supabase
+        .from("expense_members")
+        .select("expense_id")
+        .eq("roommate_id", otherRoommateId)
+        .in("expense_id", myExpenseIds)
+        .limit(100)
+    : { data: [] };
+
+  const sharedExpenseIds = (otherExpenseMembers ?? []).map((member) => member.expense_id);
+  const { data: paidExpensesData } = sharedExpenseIds.length > 0
+    ? await supabase
+        .from("expenses")
+        .select("*")
+        .eq("group_id", current.group_id)
+        .in("id", sharedExpenseIds)
+        .order("created_at", { ascending: false })
+        .limit(30)
+    : { data: [] };
+
+  const expenseEvents = ((paidExpensesData ?? []) as Expense[]).map((expense) => ({
+    id: expense.id,
+    type: "expense" as const,
+    title: expense.title,
+    body: `Paid by ${expense.paid_by_roommate_id === current.id ? "you" : otherRoommate.name}`,
+    amountPaisa: expense.amount_paisa,
+    createdAt: expense.created_at,
+  }));
+
+  const paymentEvents = ((paymentsData ?? []) as Payment[]).map((payment) => ({
+    id: payment.id,
+    type: "payment" as const,
+    title: payment.status === "confirmed" ? "Payment confirmed" : payment.status === "disputed" ? "Payment disputed" : "Payment requested",
+    body: payment.from_roommate_id === current.id ? `You paid ${otherRoommate.name}` : `${otherRoommate.name} paid you`,
+    amountPaisa: payment.amount_paisa,
+    createdAt: payment.created_at,
+  }));
+
+  const reminderEvents = ((remindersData ?? []) as Reminder[]).map((reminder) => ({
+    id: reminder.id,
+    type: "reminder" as const,
+    title: "Reminder sent",
+    body: reminder.from_roommate_id === current.id ? `You reminded ${otherRoommate.name}` : `${otherRoommate.name} reminded you`,
+    amountPaisa: reminder.amount_paisa,
+    createdAt: reminder.created_at,
+  }));
+
+  return {
+    otherRoommate,
+    balance,
+    events: [...expenseEvents, ...paymentEvents, ...reminderEvents].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    ),
+  };
+}
