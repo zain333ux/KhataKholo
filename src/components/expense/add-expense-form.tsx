@@ -264,20 +264,11 @@ export function AddExpenseForm({
             </button>
           </div>
         ) : (
-          <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center hover:border-emerald-300 hover:bg-emerald-50 transition-colors">
+          <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
             <Upload size={22} className="text-slate-400" />
-            <span className="text-sm font-medium text-slate-600">Tap to upload receipt</span>
-            <span className="text-xs text-slate-400">PNG, JPG up to 5 MB</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadReceipt(file);
-              }}
-            />
-          </label>
+            <span className="text-sm font-medium text-slate-600">Receipt upload: Working on it</span>
+            <span className="text-xs text-slate-400">Cloudinary integration is not configured yet.</span>
+          </div>
         )}
 
         {receiptStatus ? (
