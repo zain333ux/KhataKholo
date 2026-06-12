@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { UsersRound } from "lucide-react";
+import { KeyRound, LogOut, Shield, UsersRound } from "lucide-react";
 
 import { LogoutButton } from "@/components/auth/logout-button";
 import { PinChangeForm } from "@/components/auth/pin-change-form";
 import { ButtonLink } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge, Card } from "@/components/ui/card";
 import { requireCurrentRoommate } from "@/lib/auth/session";
 
@@ -11,47 +12,70 @@ export default async function ProfilePage() {
   const roommate = await requireCurrentRoommate();
 
   return (
-    <div className="grid gap-4">
-      <Card className="grid gap-3">
-        <div className="flex items-center justify-between">
+    <div className="grid gap-5">
+      {/* Profile Hero */}
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center gap-4 bg-gradient-to-br from-emerald-600 to-emerald-700 px-5 py-6">
+          <Avatar name={roommate.name} size="lg" className="ring-4 ring-white/30" />
           <div>
-            <h2 className="text-xl font-bold text-slate-950">{roommate.name}</h2>
-            <p className="text-sm text-slate-500">{roommate.login_id}</p>
+            <h2 className="text-xl font-extrabold text-white">{roommate.name}</h2>
+            <p className="text-sm text-emerald-100">{roommate.login_id}</p>
+            {roommate.phone ? (
+              <p className="text-xs text-emerald-200">📞 {roommate.phone}</p>
+            ) : null}
           </div>
-          <Badge tone={roommate.role === "admin" ? "green" : "slate"}>{roommate.role}</Badge>
+          <Badge
+            tone={roommate.role === "admin" ? "green" : "slate"}
+            className="ml-auto self-start bg-white/20 text-white ring-0"
+          >
+            {roommate.role === "admin" ? <Shield size={11} /> : null}
+            {roommate.role}
+          </Badge>
         </div>
-        <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-          <p className="font-semibold text-slate-900">{roommate.group.name}</p>
-          <p>Room code: {roommate.group.room_code}</p>
-          {roommate.phone ? <p>Phone: {roommate.phone}</p> : null}
+        <div className="px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Room</p>
+          <p className="mt-1 font-bold text-slate-900">{roommate.group.name}</p>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+              {roommate.group.room_code}
+            </span>
+            <span className="text-xs text-slate-500">Room code</span>
+          </div>
         </div>
       </Card>
 
+      {/* Admin link */}
       {roommate.role === "admin" ? (
         <ButtonLink href="/admin/roommates" variant="secondary" className="w-full">
           <UsersRound size={18} />
-          Manage roommates
+          Manage Roommates
         </ButtonLink>
       ) : null}
 
-      <Card className="grid gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-950">Change PIN</h2>
-          <p className="text-sm text-slate-500">Use a 6-digit PIN you can remember.</p>
+      {/* Change PIN */}
+      <Card className="grid gap-4 p-5">
+        <div className="flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-100">
+            <KeyRound size={18} className="text-emerald-700" />
+          </span>
+          <div>
+            <h3 className="font-bold text-slate-900">Change PIN</h3>
+            <p className="text-xs text-slate-500">Use a 6-digit PIN you can remember.</p>
+          </div>
         </div>
         <PinChangeForm />
       </Card>
 
+      {/* Logout */}
       <LogoutButton />
 
       <p className="text-center text-xs text-slate-400">
-        Need admin help? Ask your room admin to reset your PIN from{" "}
-        <Link href="/admin/roommates" className="font-semibold text-slate-600">
-          roommates
-        </Link>
-        .
+        Need help?{" "}
+        <Link href="/admin/roommates" className="font-semibold text-slate-600 hover:underline">
+          Ask your room admin
+        </Link>{" "}
+        to reset your PIN.
       </p>
     </div>
   );
 }
-

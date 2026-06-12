@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 import { AdminRoommatesPanel } from "@/components/auth/admin-roommates-panel";
 import { requireCurrentRoommate } from "@/lib/auth/session";
@@ -14,14 +16,22 @@ export default async function AdminRoommatesPage() {
   const roommates = await getRoommatesForGroup(roommate.group_id);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-5">
       <div>
-        <p className="text-sm font-semibold text-emerald-700">Admin</p>
-        <h2 className="text-2xl font-bold text-slate-950">Roommates</h2>
-        <p className="text-sm text-slate-500">Add, edit, remove, or reset PINs for this room.</p>
+        <Link
+          href="/profile"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:underline"
+        >
+          <ArrowLeft size={15} />
+          Back to Profile
+        </Link>
+        <p className="mt-3 text-xs font-bold uppercase tracking-widest text-emerald-600">Admin</p>
+        <h2 className="text-xl font-extrabold text-slate-900">Manage Roommates</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Add, edit, remove, or reset PINs for this room.
+        </p>
       </div>
       <AdminRoommatesPanel roommates={roommates} />
     </div>
   );
 }
-

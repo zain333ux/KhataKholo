@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import Link from "next/link";
 import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -24,11 +23,22 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="grid gap-4">
-      <Field label="Room code">
-        <Input name="roomCode" autoComplete="organization" placeholder="ROOM12" required />
+      <Field label="Room Code" hint="Capital letters and numbers, e.g. ROOM12">
+        <Input
+          name="roomCode"
+          autoComplete="organization"
+          placeholder="ROOM12"
+          className="uppercase"
+          required
+        />
       </Field>
-      <Field label="Username or phone">
-        <Input name="loginId" autoComplete="username" placeholder="ali or 03001234567" required />
+      <Field label="Username or Phone">
+        <Input
+          name="loginId"
+          autoComplete="username"
+          placeholder="ali or 03001234567"
+          required
+        />
       </Field>
       <Field label="6-digit PIN">
         <Input
@@ -38,7 +48,7 @@ export function LoginForm() {
           pattern="[0-9]{6}"
           maxLength={6}
           title="PIN must be exactly 6 digits (numbers only)"
-          placeholder="123456"
+          placeholder="••••••"
           autoComplete="current-password"
           required
           onInput={(e) => {
@@ -47,16 +57,10 @@ export function LoginForm() {
         />
       </Field>
       <ActionMessage state={state} />
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" className="w-full" disabled={isPending}>
         <LogIn size={18} />
-        {isPending ? "Logging in..." : "Login"}
+        {isPending ? "Logging in…" : "Login"}
       </Button>
-      <p className="text-center text-sm text-slate-500">
-        New room?{" "}
-        <Link href="/create-room" className="font-semibold text-emerald-700">
-          Create one
-        </Link>
-      </p>
     </form>
   );
 }

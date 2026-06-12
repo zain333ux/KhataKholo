@@ -10,11 +10,12 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   const roommate = await requireCurrentRoommate();
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-100 pb-24">
       <AppHeader roommate={roommate} />
-      <main className="mx-auto max-w-md px-4 py-4">{children}</main>
+      <main className="mx-auto max-w-md px-4 py-5">{children}</main>
       <BottomNav />
     </div>
   );
 }
+
 

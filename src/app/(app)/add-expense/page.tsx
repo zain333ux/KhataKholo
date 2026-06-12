@@ -7,14 +7,15 @@ export default async function AddExpensePage() {
   const roommates = await getActiveRoommatesForGroup(current.group_id);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-5">
       <div>
-        <p className="text-sm font-semibold text-emerald-700">New expense</p>
-        <h2 className="text-2xl font-bold text-slate-950">Add shared kharcha</h2>
-        <p className="text-sm text-slate-500">Choose who was included and how the bill should split.</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">New Expense</p>
+        <h2 className="text-xl font-extrabold text-slate-900">Add Shared Kharcha</h2>
+        <p className="mt-1 text-xs text-slate-500">
+          Choose who was included and how the bill should split.
+        </p>
       </div>
       <AddExpenseForm roommates={roommates} currentRoommateId={current.id} />
     </div>
   );
 }
-
