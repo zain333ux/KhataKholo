@@ -48,7 +48,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const { data: balancesData } = await supabase
     .from("balances")
-    .select("*")
+    .select("id, debtor_roommate_id, creditor_roommate_id, amount_paisa, roommate_one_id, roommate_two_id")
     .eq("group_id", current.group_id)
     .or(`debtor_roommate_id.eq.${current.id},creditor_roommate_id.eq.${current.id}`);
 
@@ -57,7 +57,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const { data: memberData } = await supabase
     .from("expense_members")
-    .select("expenses(*)")
+    .select("expenses(id, title, amount_paisa, expense_date, paid_by_roommate_id)")
     .eq("roommate_id", current.id)
     .order("created_at", { ascending: false })
     .limit(5);
@@ -76,7 +76,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   const { data: paymentsData } = await supabase
     .from("payments")
-    .select("*")
+    .select("id, from_roommate_id, amount_paisa")
     .eq("group_id", current.group_id)
     .eq("to_roommate_id", current.id)
     .eq("status", "pending_confirmation")

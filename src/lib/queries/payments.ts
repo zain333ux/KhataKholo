@@ -21,11 +21,12 @@ export async function getPendingPaymentConfirmations(): Promise<PaymentConfirmat
 
   const { data } = await supabase
     .from("payments")
-    .select("*")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, note, created_at")
     .eq("group_id", current.group_id)
     .eq("to_roommate_id", current.id)
     .eq("status", "pending_confirmation")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   return ((data ?? []) as Payment[]).map((payment) => ({
     ...payment,

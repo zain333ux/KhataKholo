@@ -27,7 +27,7 @@ export async function sendReminderAction(_: ActionState, formData: FormData): Pr
 
     const { data: balanceData } = await supabase
       .from("balances")
-      .select("*")
+      .select("amount_paisa")
       .eq("group_id", current.group_id)
       .eq("debtor_roommate_id", toRoommateId)
       .eq("creditor_roommate_id", current.id)

@@ -34,9 +34,17 @@ function groupByDate(events: Awaited<ReturnType<typeof getHistoryEvents>>) {
 }
 
 
-export default async function HistoryPage() {
-  const events = await getHistoryEvents();
+export default async function HistoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const resolvedParams = await searchParams;
+  const page = Number(resolvedParams.page ?? "1");
+  const limit = 20;
+  const events = await getHistoryEvents(page, limit);
   const grouped = groupByDate(events);
+  const hasNextPage = events.length === limit;
 
   return (
     <div className="grid gap-5">
@@ -60,13 +68,13 @@ export default async function HistoryPage() {
         <div className="grid gap-5">
           {Array.from(grouped.entries()).map(([date, dateEvents]) => (
             <div key={date} className="grid gap-2">
-              {/* Date header */}
+               {/* Date header */}
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{date}</p>
               <div className="grid gap-2">
                 {dateEvents.map((event) => {
                   const cfg = eventConfig[event.type];
                   const Icon = cfg.icon;
-
+ 
                   const card = (
                     <Card key={`${event.type}-${event.id}`} className="flex items-center gap-3 p-4">
                       <span
@@ -104,7 +112,7 @@ export default async function HistoryPage() {
                       ) : null}
                     </Card>
                   );
-
+ 
                   return event.href ? (
                     <Link key={`${event.type}-${event.id}`} href={event.href} className="hover:opacity-90 transition-opacity">
                       {card}
@@ -116,6 +124,31 @@ export default async function HistoryPage() {
               </div>
             </div>
           ))}
+
+          {/* Pagination controls */}
+          <div className="flex items-center justify-between gap-4 mt-6">
+            {page > 1 ? (
+              <Link
+                href={`/history?page=${page - 1}`}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 active:scale-95 touch-manipulation"
+              >
+                ← Previous
+              </Link>
+            ) : (
+              <div className="flex-1" />
+            )}
+            <span className="text-sm font-semibold text-slate-500">Page {page}</span>
+            {hasNextPage ? (
+              <Link
+                href={`/history?page=${page + 1}`}
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 active:scale-95 touch-manipulation"
+              >
+                Next →
+              </Link>
+            ) : (
+              <div className="flex-1" />
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
-import { applyExpenseBalance } from "@/lib/actions/balance-updates";
 import { calculateEqualShares, validateCustomShares, type SplitShare } from "@/lib/calculations/splits";
 import { rupeesToPaisa } from "@/lib/money";
 import { getActiveRoommatesForGroup } from "@/lib/queries/roommates";
@@ -78,55 +77,25 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
       }
     }
 
-    const { data: expenseData, error: expenseError } = await supabase
-      .from("expenses")
-      .insert({
-        group_id: current.group_id,
-        title,
-        amount_paisa: amountPaisa,
-        paid_by_roommate_id: paidByRoommateId,
-        created_by_roommate_id: current.id,
-        split_type: splitType,
-        expense_date: expenseDate,
-        note,
-        receipt_url: receiptUrl,
-        receipt_public_id: receiptPublicId,
-      })
-      .select("*")
-      .single();
+    const { data: rpcExpenseId, error: rpcError } = await (supabase as any).rpc("create_expense_v1", {
+      p_group_id: current.group_id,
+      p_title: title,
+      p_amount_paisa: amountPaisa,
+      p_paid_by_roommate_id: paidByRoommateId,
+      p_created_by_roommate_id: current.id,
+      p_split_type: splitType,
+      p_expense_date: expenseDate,
+      p_note: note,
+      p_receipt_url: receiptUrl,
+      p_receipt_public_id: receiptPublicId,
+      p_shares: shares.map((s) => ({ roommate_id: s.roommateId, share_paisa: s.sharePaisa })),
+    });
 
-    if (expenseError || !expenseData) {
-      throw new Error(expenseError?.message ?? "Could not add expense.");
+    if (rpcError || !rpcExpenseId) {
+      throw new Error(rpcError?.message ?? "Could not add expense.");
     }
 
-    const expense = expenseData as Expense;
-    createdExpenseId = expense.id;
-
-    const { error: membersError } = await supabase.from("expense_members").insert(
-      shares.map((share) => ({
-        expense_id: expense.id,
-        roommate_id: share.roommateId,
-        share_paisa: share.sharePaisa,
-      })),
-    );
-
-    if (membersError) {
-      throw new Error(membersError.message);
-    }
-
-    for (const share of shares) {
-      if (share.roommateId === paidByRoommateId || share.sharePaisa <= 0) {
-        continue;
-      }
-
-      await applyExpenseBalance({
-        supabase,
-        groupId: current.group_id,
-        payerId: paidByRoommateId,
-        debtorId: share.roommateId,
-        sharePaisa: share.sharePaisa,
-      });
-    }
+    createdExpenseId = rpcExpenseId as string;
 
     revalidatePath("/home");
     revalidatePath("/khata");

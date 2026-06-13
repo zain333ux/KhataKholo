@@ -15,6 +15,55 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 
+async function compressAndResizeImage(file: File): Promise<Blob | File> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      
+      const MAX_WIDTH = 1024;
+      const MAX_HEIGHT = 1024;
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        if (width > height) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        } else {
+          width = Math.round((width * MAX_HEIGHT) / height);
+          height = MAX_HEIGHT;
+        }
+      }
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+      
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size < file.size) {
+            resolve(blob);
+          } else {
+            resolve(file);
+          }
+        },
+        "image/webp",
+        0.8
+      );
+    };
+    img.onerror = () => resolve(file);
+  });
+}
+
 export function AddExpenseForm({
   roommates,
   currentRoommateId,
@@ -45,20 +94,22 @@ export function AddExpenseForm({
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function uploadReceipt(file: File) {
     if (!file.type.startsWith("image/")) {
       setReceiptStatus("Please choose an image file.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setReceiptStatus("Receipt image must be 5 MB or smaller.");
+    if (file.size > 10 * 1024 * 1024) {
+      setReceiptStatus("Receipt image must be 10 MB or smaller.");
       return;
     }
     setIsUploadingReceipt(true);
-    setReceiptStatus("Uploading receipt…");
+    setReceiptStatus("Compressing receipt image…");
 
     try {
+      const processedFile = await compressAndResizeImage(file);
+      setReceiptStatus("Uploading receipt…");
+
       const signResponse = await fetch("/api/cloudinary/sign", { method: "POST" });
       const signature = (await signResponse.json()) as
         | { cloudName: string; apiKey: string; folder: string; timestamp: number; signature: string }
@@ -69,7 +120,7 @@ export function AddExpenseForm({
       }
 
       const uploadData = new FormData();
-      uploadData.set("file", file);
+      uploadData.set("file", processedFile);
       uploadData.set("api_key", signature.apiKey);
       uploadData.set("timestamp", String(signature.timestamp));
       uploadData.set("signature", signature.signature);
@@ -258,17 +309,31 @@ export function AddExpenseForm({
             <button
               type="button"
               onClick={() => { setReceiptUrl(""); setReceiptPublicId(""); setReceiptStatus(""); }}
-              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-rose-600 text-white shadow"
+              className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-rose-600 text-white shadow touch-manipulation"
               aria-label="Remove receipt"
             >
               <X size={14} />
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+          <div className="relative flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center hover:bg-slate-100 transition-colors">
+            <input
+              type="file"
+              accept="image/*"
+              className="absolute inset-0 cursor-pointer opacity-0 touch-manipulation"
+              disabled={isUploadingReceipt}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  uploadReceipt(file);
+                }
+              }}
+            />
             <Upload size={22} className="text-slate-400" />
-            <span className="text-sm font-medium text-slate-600">Receipt upload: Working on it</span>
-            <span className="text-xs text-slate-400">Cloudinary integration is not configured yet.</span>
+            <span className="text-sm font-medium text-slate-600">
+              {isUploadingReceipt ? "Uploading..." : "Upload Receipt"}
+            </span>
+            <span className="text-xs text-slate-400">Tap to select or take photo (max 10MB)</span>
           </div>
         )}
 

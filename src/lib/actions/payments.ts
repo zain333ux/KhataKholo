@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
-import { applyConfirmedPayment } from "@/lib/actions/balance-updates";
 import { validatePaymentReduction } from "@/lib/calculations/balances";
 import { rupeesToPaisa } from "@/lib/money";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -56,29 +55,17 @@ export async function recordPaymentReceivedAction(_: ActionState, formData: Form
       throw new Error(validationError);
     }
 
-    const { error: insertError } = await supabase.from("payments").insert({
-      group_id: current.group_id,
-      from_roommate_id: fromRoommateId,
-      to_roommate_id: current.id,
-      amount_paisa: amountPaisa,
-      status: "confirmed",
-      initiated_by_roommate_id: current.id,
-      confirmed_by_roommate_id: current.id,
-      note,
-      confirmed_at: new Date().toISOString(),
+    const { error: rpcError } = await (supabase as any).rpc("record_payment_received_v1", {
+      p_group_id: current.group_id,
+      p_from_roommate_id: fromRoommateId,
+      p_to_roommate_id: current.id,
+      p_amount_paisa: amountPaisa,
+      p_note: note,
     });
 
-    if (insertError) {
-      throw new Error(insertError.message);
+    if (rpcError) {
+      throw new Error(rpcError.message);
     }
-
-    await applyConfirmedPayment({
-      supabase,
-      groupId: current.group_id,
-      fromRoommateId,
-      toRoommateId: current.id,
-      amountPaisa,
-    });
 
     revalidatePath("/khata");
     revalidatePath("/home");
@@ -158,23 +145,15 @@ export async function confirmPaymentAction(formData: FormData) {
     throw new Error(validationError);
   }
 
-  await applyConfirmedPayment({
-    supabase,
-    groupId: current.group_id,
-    fromRoommateId: payment.from_roommate_id,
-    toRoommateId: payment.to_roommate_id,
-    amountPaisa: payment.amount_paisa,
+  const { error: rpcError } = await (supabase as any).rpc("confirm_payment_v1", {
+    p_payment_id: payment.id,
+    p_confirmed_by_roommate_id: current.id,
+    p_note: note ?? payment.note,
   });
 
-  await supabase
-    .from("payments")
-    .update({
-      status: "confirmed",
-      confirmed_by_roommate_id: current.id,
-      confirmed_at: new Date().toISOString(),
-      note: note ?? payment.note,
-    })
-    .eq("id", payment.id);
+  if (rpcError) {
+    throw new Error(rpcError.message);
+  }
 
   revalidatePath("/payments/confirmations");
   revalidatePath("/khata");

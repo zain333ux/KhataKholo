@@ -53,7 +53,7 @@ export async function getExpenseDetail(expenseId: string): Promise<ExpenseDetail
 
   const { data: memberData } = await supabase
     .from("expense_members")
-    .select("*")
+    .select("id, expense_id, roommate_id, share_paisa")
     .eq("expense_id", expense.id)
     .order("created_at");
 
@@ -71,7 +71,7 @@ export async function getExpenseDetail(expenseId: string): Promise<ExpenseDetail
 
   const { data: disputesData } = await supabase
     .from("disputes")
-    .select("*")
+    .select("id, expense_id, raised_by_roommate_id, reason, suggested_correction_paisa, status, resolution_note, created_at")
     .eq("expense_id", expense.id)
     .order("created_at", { ascending: false });
 

@@ -20,7 +20,7 @@ type ExpenseMemberWithExpense = {
   expenses: Expense | null;
 };
 
-export async function getHistoryEvents(): Promise<HistoryEvent[]> {
+export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEvent[]> {
   const current = await requireCurrentRoommate();
   const supabase = await createServerSupabaseClient();
   const roommates = await getActiveRoommatesForGroup(current.group_id);
@@ -30,12 +30,14 @@ export async function getHistoryEvents(): Promise<HistoryEvent[]> {
     return [];
   }
 
+  const fetchLimit = page * limit;
+
   const { data: expenseMemberData } = await supabase
     .from("expense_members")
-    .select("expenses(*)")
+    .select("expenses(id, title, amount_paisa, expense_date, paid_by_roommate_id, created_at)")
     .eq("roommate_id", current.id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(fetchLimit);
 
   const expenseEvents = ((expenseMemberData ?? []) as unknown as ExpenseMemberWithExpense[])
     .map((row) => row.expenses)
@@ -52,11 +54,11 @@ export async function getHistoryEvents(): Promise<HistoryEvent[]> {
 
   const { data: paymentData } = await supabase
     .from("payments")
-    .select("*")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, created_at")
     .eq("group_id", current.group_id)
     .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(fetchLimit);
 
   const paymentEvents = ((paymentData ?? []) as Payment[]).map((payment) => {
     const otherId = payment.from_roommate_id === current.id ? payment.to_roommate_id : payment.from_roommate_id;
@@ -76,10 +78,10 @@ export async function getHistoryEvents(): Promise<HistoryEvent[]> {
   const expenseIds = expenseEvents.map((event) => event.id);
   const disputesQuery = supabase
     .from("disputes")
-    .select("*")
+    .select("id, raised_by_roommate_id, reason, suggested_correction_paisa, status, expense_id, created_at")
     .eq("group_id", current.group_id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(fetchLimit);
 
   const { data: disputeData } = expenseIds.length > 0
     ? await disputesQuery.or(`raised_by_roommate_id.eq.${current.id},expense_id.in.(${expenseIds.join(",")})`)
@@ -98,11 +100,11 @@ export async function getHistoryEvents(): Promise<HistoryEvent[]> {
 
   const { data: reminderData } = await supabase
     .from("reminders")
-    .select("*")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, created_at")
     .eq("group_id", current.group_id)
     .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(fetchLimit);
 
   const reminderEvents = ((reminderData ?? []) as Reminder[]).map((reminder) => {
     const otherId = reminder.from_roommate_id === current.id ? reminder.to_roommate_id : reminder.from_roommate_id;
@@ -118,7 +120,10 @@ export async function getHistoryEvents(): Promise<HistoryEvent[]> {
     };
   });
 
-  return [...expenseEvents, ...paymentEvents, ...disputeEvents, ...reminderEvents].sort(
+  const sorted = [...expenseEvents, ...paymentEvents, ...disputeEvents, ...reminderEvents].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
+
+  const startIndex = (page - 1) * limit;
+  return sorted.slice(startIndex, startIndex + limit);
 }

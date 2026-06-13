@@ -41,7 +41,7 @@ export async function getMyKhata(): Promise<KhataItem[]> {
 
   const { data } = await supabase
     .from("balances")
-    .select("*")
+    .select("id, group_id, roommate_one_id, roommate_two_id, debtor_roommate_id, creditor_roommate_id, amount_paisa, created_at, updated_at")
     .eq("group_id", current.group_id)
     .gt("amount_paisa", 0)
     .or(`debtor_roommate_id.eq.${current.id},creditor_roommate_id.eq.${current.id}`)
@@ -64,7 +64,7 @@ export async function getMyKhata(): Promise<KhataItem[]> {
   });
 }
 
-export async function getPrivatePairHistory(otherRoommateId: string): Promise<PairHistory> {
+export async function getPrivatePairHistory(otherRoommateId: string, page = 1, limit = 20): Promise<PairHistory> {
   const current = await requireCurrentRoommate();
   const supabase = await createServerSupabaseClient();
 
@@ -82,25 +82,27 @@ export async function getPrivatePairHistory(otherRoommateId: string): Promise<Pa
   const myKhata = await getMyKhata();
   const balance = myKhata.find((item) => item.otherRoommate.id === otherRoommateId) ?? null;
 
+  const fetchLimit = page * limit;
+
   const { data: paymentsData } = await supabase
     .from("payments")
-    .select("*")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, created_at")
     .eq("group_id", current.group_id)
     .or(
       `and(from_roommate_id.eq.${current.id},to_roommate_id.eq.${otherRoommateId}),and(from_roommate_id.eq.${otherRoommateId},to_roommate_id.eq.${current.id})`,
     )
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(fetchLimit);
 
   const { data: remindersData } = await supabase
     .from("reminders")
-    .select("*")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, created_at")
     .eq("group_id", current.group_id)
     .or(
       `and(from_roommate_id.eq.${current.id},to_roommate_id.eq.${otherRoommateId}),and(from_roommate_id.eq.${otherRoommateId},to_roommate_id.eq.${current.id})`,
     )
     .order("created_at", { ascending: false })
-    .limit(30);
+    .limit(fetchLimit);
 
   const { data: myExpenseMembers } = await supabase
     .from("expense_members")
@@ -122,11 +124,11 @@ export async function getPrivatePairHistory(otherRoommateId: string): Promise<Pa
   const { data: paidExpensesData } = sharedExpenseIds.length > 0
     ? await supabase
         .from("expenses")
-        .select("*")
+        .select("id, title, amount_paisa, paid_by_roommate_id, created_at")
         .eq("group_id", current.group_id)
         .in("id", sharedExpenseIds)
         .order("created_at", { ascending: false })
-        .limit(30)
+        .limit(fetchLimit)
     : { data: [] };
 
   const expenseEvents = ((paidExpensesData ?? []) as Expense[]).map((expense) => ({
@@ -156,11 +158,15 @@ export async function getPrivatePairHistory(otherRoommateId: string): Promise<Pa
     createdAt: reminder.created_at,
   }));
 
+  const sorted = [...expenseEvents, ...paymentEvents, ...reminderEvents].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  const startIndex = (page - 1) * limit;
+
   return {
     otherRoommate,
     balance,
-    events: [...expenseEvents, ...paymentEvents, ...reminderEvents].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    ),
+    events: sorted.slice(startIndex, startIndex + limit),
   };
 }
