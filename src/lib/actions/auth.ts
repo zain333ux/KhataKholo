@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { isValidPin, loginMatchesRoommate, normalizeLoginId, normalizePhone, normalizeRoomCode } from "@/lib/auth/credentials";
+import { isValidPin, loginMatchesRoommate, normalizeLoginId, normalizePhone } from "@/lib/auth/credentials";
 import { logLoginDiagnostic } from "@/lib/auth/login-diagnostics";
 import { hashPin, verifyPin } from "@/lib/auth/pin";
 import { clearRoommateSession, createRoommateSession } from "@/lib/auth/session-token";
@@ -65,15 +65,17 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
     }
 
     const roomName = getRequiredText(formData, "roomName", "Room name");
-    const roomCode = normalizeRoomCode(getRequiredText(formData, "roomCode", "Room code"));
+    const rawRoomCode = getRequiredText(formData, "roomCode", "Room code");
+    const roomCode = rawRoomCode.toUpperCase().replace(/\s/g, "");
+
+    if (!/^[A-Z0-9]{3,20}$/.test(roomCode)) {
+      throw new Error("Room code must contain only letters and numbers (3-20 characters, no special characters or spaces).");
+    }
+
     const name = getRequiredText(formData, "name", "Your name");
     const loginId = normalizeLoginId(getRequiredText(formData, "loginId", "Username or phone"));
     const phone = normalizePhone(getText(formData, "phone"));
     const pin = getRequiredText(formData, "pin", "PIN");
-
-    if (roomCode.length < 3) {
-      throw new Error("Room code must be at least 3 letters or numbers.");
-    }
 
     if (!isValidPin(pin)) {
       throw new Error("PIN must be exactly 6 digits.");
@@ -130,7 +132,13 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
 
 export async function loginAction(_: ActionState, formData: FormData): Promise<ActionState> {
   try {
-    const roomCode = normalizeRoomCode(getRequiredText(formData, "roomCode", "Room code"));
+    const rawRoomCode = getRequiredText(formData, "roomCode", "Room code");
+    const roomCode = rawRoomCode.toUpperCase().replace(/\s/g, "");
+
+    if (!/^[A-Z0-9]{3,20}$/.test(roomCode)) {
+      throw new Error("Room code must contain only letters and numbers (3-20 characters, no special characters or spaces).");
+    }
+
     const loginInput = normalizeLoginId(getRequiredText(formData, "loginId", "Username or phone"));
     const pin = getRequiredText(formData, "pin", "PIN");
 

@@ -31,7 +31,7 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex flex-col items-center justify-center"
+                className="flex flex-col items-center justify-center active:scale-95 transition-transform duration-75"
                 aria-label="Add expense"
               >
                 <span
@@ -53,7 +53,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={clsx(
-                "flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
+                "flex flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-all active:scale-95 duration-75",
                 active ? "text-emerald-700" : "text-slate-400 hover:text-slate-600",
               )}
             >

@@ -1,6 +1,7 @@
 import { clsx } from "clsx";
 import type { ButtonHTMLAttributes, AnchorHTMLAttributes, ReactNode } from "react";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -20,10 +21,20 @@ const baseClasses =
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
+  loading?: boolean;
 };
 
-export function Button({ className, variant = "primary", ...props }: ButtonProps) {
-  return <button className={clsx(baseClasses, variants[variant], className)} {...props} />;
+export function Button({ className, variant = "primary", loading, children, ...props }: ButtonProps) {
+  return (
+    <button
+      className={clsx(baseClasses, variants[variant], className)}
+      disabled={loading || props.disabled}
+      {...props}
+    >
+      {loading && <Loader2 className="animate-spin shrink-0" size={16} />}
+      {children}
+    </button>
+  );
 }
 
 type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {

@@ -47,10 +47,14 @@ body {
 button,
 input,
 select,
-textarea {
+textarea,
+a,
+[role="button"] {
   font: inherit;
   /* Prevent iOS callout menu on long-press */
   -webkit-touch-callout: none;
+  /* Disable double-tap to zoom to eliminate 300ms tap delay */
+  touch-action: manipulation;
 }
 
 /* Prevent text selection on interactive elements for native feel */

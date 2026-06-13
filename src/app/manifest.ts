@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "KhataKholo – Room Khata",
     short_name: "KhataKholo",
     description: "Private roommate expense splitting and khata for hostel rooms.",
-    start_url: "/home",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],

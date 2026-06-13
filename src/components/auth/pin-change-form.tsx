@@ -45,8 +45,8 @@ export function PinChangeForm() {
         />
       </Field>
       <ActionMessage state={state} />
-      <Button type="submit" disabled={isPending}>
-        <KeyRound size={18} />
+      <Button type="submit" loading={isPending}>
+        {!isPending && <KeyRound size={18} />}
         {isPending ? "Changing..." : "Change PIN"}
       </Button>
     </form>
