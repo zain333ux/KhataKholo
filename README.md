@@ -80,23 +80,15 @@ New room? Open **Create room**, choose a room code, and create the first admin a
 
 ## How the khata moves
 
-```mermaid
-flowchart LR
-    A["Create or join a room"] --> B["Add an expense"]
-    B --> C{"Choose the split"}
-    C -->|Equal| D["Divide between selected roommates"]
-    C -->|Custom| E["Enter each share"]
-    D --> F["Update private balances"]
-    E --> F
-    F --> G["Record a payment"]
-    G --> H["Other roommate confirms"]
-    H --> I["Khata settled"]
+<div align="center">
 
-    style A fill:#ECFDF5,stroke:#059669,color:#064E3B
-    style C fill:#FFFBEB,stroke:#D97706,color:#78350F
-    style F fill:#EFF6FF,stroke:#2563EB,color:#1E3A8A
-    style I fill:#D1FAE5,stroke:#047857,color:#064E3B
-```
+| 01. Join | 02. Add | 03. Split | 04. Settle |
+| :---: | :---: | :---: | :---: |
+| Create or enter a room | Record the shared expense | Choose equal or custom shares | Record and confirm payment |
+
+`ROOM` &nbsp; → &nbsp; `EXPENSE` &nbsp; → &nbsp; `PRIVATE BALANCES` &nbsp; → &nbsp; `KHATA SETTLED`
+
+</div>
 
 ## Privacy without the fine print
 
