@@ -34,7 +34,7 @@ export async function getCurrentRoommate(): Promise<CurrentRoommate | null> {
     if (sessionError) {
       console.error("[auth:session] session query error:", sessionError);
     } else {
-      console.warn("[auth:session] session not found or expired in DB. Hash:", tokenHash);
+      console.warn("[auth:session] session not found or expired in DB.");
     }
     return null;
   }
@@ -57,10 +57,19 @@ export async function getCurrentRoommate(): Promise<CurrentRoommate | null> {
     return null;
   }
 
-  await supabase
-    .from("roommate_sessions")
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq("id", session.id);
+  const lastSeenAt = new Date(session.last_seen_at).getTime();
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+
+  if (!Number.isFinite(lastSeenAt) || lastSeenAt < fiveMinutesAgo) {
+    const { error: touchError } = await supabase
+      .from("roommate_sessions")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("id", session.id);
+
+    if (touchError) {
+      console.error("[auth:session] could not update session activity:", touchError);
+    }
+  }
 
   const roommate = data as unknown as RoommateWithGroup;
   if (!roommate.groups) {
@@ -89,4 +98,3 @@ export function requireAdmin(roommate: CurrentRoommate): void {
     throw new Error("Only room admins can do this.");
   }
 }
-

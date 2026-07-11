@@ -55,7 +55,7 @@ export async function recordPaymentReceivedAction(_: ActionState, formData: Form
       throw new Error(validationError);
     }
 
-    const { error: rpcError } = await (supabase as any).rpc("record_payment_received_v1", {
+    const { error: rpcError } = await supabase.rpc("record_payment_received_v1", {
       p_group_id: current.group_id,
       p_from_roommate_id: fromRoommateId,
       p_to_roommate_id: current.id,
@@ -145,7 +145,7 @@ export async function confirmPaymentAction(formData: FormData) {
     throw new Error(validationError);
   }
 
-  const { error: rpcError } = await (supabase as any).rpc("confirm_payment_v1", {
+  const { error: rpcError } = await supabase.rpc("confirm_payment_v1", {
     p_payment_id: payment.id,
     p_confirmed_by_roommate_id: current.id,
     p_note: note ?? payment.note,

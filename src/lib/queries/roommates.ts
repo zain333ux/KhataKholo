@@ -11,12 +11,16 @@ export async function getRoommatesForGroup(groupId: string): Promise<RoommateLis
     return [];
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("roommates")
     .select(publicRoommateColumns)
     .eq("group_id", groupId)
     .order("is_active", { ascending: false })
     .order("name");
+
+  if (error) {
+    throw new Error(`Could not load roommates: ${error.message}`);
+  }
 
   return (data ?? []) as RoommateListItem[];
 }

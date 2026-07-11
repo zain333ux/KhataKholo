@@ -49,7 +49,42 @@ export type Database = {
       }>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_expense_v1: {
+        Args: {
+          p_group_id: string;
+          p_title: string;
+          p_amount_paisa: number;
+          p_paid_by_roommate_id: string;
+          p_created_by_roommate_id: string;
+          p_split_type: "equal" | "custom";
+          p_expense_date: string;
+          p_note: string | null;
+          p_receipt_url: string | null;
+          p_receipt_public_id: string | null;
+          p_shares: Json;
+        };
+        Returns: string;
+      };
+      confirm_payment_v1: {
+        Args: {
+          p_payment_id: string;
+          p_confirmed_by_roommate_id: string;
+          p_note: string | null;
+        };
+        Returns: undefined;
+      };
+      record_payment_received_v1: {
+        Args: {
+          p_group_id: string;
+          p_from_roommate_id: string;
+          p_to_roommate_id: string;
+          p_amount_paisa: number;
+          p_note: string | null;
+        };
+        Returns: undefined;
+      };
+    };
     Enums: {
       roommate_role: "admin" | "member";
       split_type: "equal" | "custom";

@@ -39,7 +39,15 @@ export async function getExpenseDetail(expenseId: string): Promise<ExpenseDetail
     .eq("id", expenseId)
     .single();
 
-  if (expenseError || !expenseData) {
+  if (expenseError) {
+    if (expenseError.code === "PGRST116") {
+      notFound();
+    }
+
+    throw new Error(`Could not load expense: ${expenseError.message}`);
+  }
+
+  if (!expenseData) {
     notFound();
   }
 
@@ -51,11 +59,15 @@ export async function getExpenseDetail(expenseId: string): Promise<ExpenseDetail
   const roommates = await getActiveRoommatesForGroup(expense.group_id);
   const names = makeRoommateNameMap(roommates);
 
-  const { data: memberData } = await supabase
+  const { data: memberData, error: memberError } = await supabase
     .from("expense_members")
     .select("id, expense_id, roommate_id, share_paisa")
     .eq("expense_id", expense.id)
     .order("created_at");
+
+  if (memberError) {
+    throw new Error(`Could not load expense members: ${memberError.message}`);
+  }
 
   const members = ((memberData ?? []) as ExpenseMember[]).map((member) => ({
     ...member,
@@ -69,11 +81,15 @@ export async function getExpenseDetail(expenseId: string): Promise<ExpenseDetail
     notFound();
   }
 
-  const { data: disputesData } = await supabase
+  const { data: disputesData, error: disputesError } = await supabase
     .from("disputes")
     .select("id, expense_id, raised_by_roommate_id, reason, suggested_correction_paisa, status, resolution_note, created_at")
     .eq("expense_id", expense.id)
     .order("created_at", { ascending: false });
+
+  if (disputesError) {
+    throw new Error(`Could not load disputes: ${disputesError.message}`);
+  }
 
   const disputes = ((disputesData ?? []) as Dispute[]).map((dispute) => ({
     ...dispute,

@@ -77,7 +77,7 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
       }
     }
 
-    const { data: rpcExpenseId, error: rpcError } = await (supabase as any).rpc("create_expense_v1", {
+    const expenseArgs = {
       p_group_id: current.group_id,
       p_title: title,
       p_amount_paisa: amountPaisa,
@@ -89,7 +89,15 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
       p_receipt_url: receiptUrl,
       p_receipt_public_id: receiptPublicId,
       p_shares: shares.map((s) => ({ roommate_id: s.roommateId, share_paisa: s.sharePaisa })),
-    });
+    };
+
+    let { data: rpcExpenseId, error: rpcError } = await supabase.rpc("create_expense_v1", expenseArgs);
+
+    // Two first-time expenses for the same pair can race while creating the
+    // unique balance row. One transaction wins; retry the rolled-back one.
+    if (rpcError?.code === "23505") {
+      ({ data: rpcExpenseId, error: rpcError } = await supabase.rpc("create_expense_v1", expenseArgs));
+    }
 
     if (rpcError || !rpcExpenseId) {
       throw new Error(rpcError?.message ?? "Could not add expense.");
