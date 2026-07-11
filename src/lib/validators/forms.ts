@@ -31,7 +31,23 @@ export function getAllText(formData: FormData, key: string): string[] {
 
 export function actionError(error: unknown): ActionState {
   if (error instanceof Error) {
-    return { ok: false, message: error.message };
+    const message = error.message;
+
+    if (/fetch failed|enotfound|econnrefused|network/i.test(message)) {
+      return {
+        ok: false,
+        message: "The room service is temporarily unavailable. Please try again shortly.",
+      };
+    }
+
+    if (/duplicate key|groups_room_code_key/i.test(message)) {
+      return {
+        ok: false,
+        message: "That room code is already in use. Please choose another one.",
+      };
+    }
+
+    return { ok: false, message };
   }
 
   return { ok: false, message: "Something went wrong. Please try again." };
@@ -40,4 +56,3 @@ export function actionError(error: unknown): ActionState {
 export function actionSuccess(message: string): ActionState {
   return { ok: true, message };
 }
-

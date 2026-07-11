@@ -58,6 +58,8 @@ async function findRoommateForLogin(roomCode: string, loginInput: string): Promi
 }
 
 export async function createRoomAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  let createdGroupId: string | null = null;
+
   try {
     const supabase = await createServerSupabaseClient();
     if (!supabase) {
@@ -96,6 +98,8 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
       throw new Error(groupError?.message ?? "Could not create the room.");
     }
 
+    createdGroupId = (group as Group).id;
+
     const { data: roommate, error: roommateError } = await supabase
       .from("roommates")
       .insert({
@@ -113,10 +117,14 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
       throw new Error(roommateError?.message ?? "Could not create the admin roommate.");
     }
 
-    await supabase
+    const { error: groupUpdateError } = await supabase
       .from("groups")
       .update({ created_by_roommate_id: (roommate as Roommate).id })
       .eq("id", (group as Group).id);
+
+    if (groupUpdateError) {
+      throw new Error(groupUpdateError.message);
+    }
 
     const session = await createRoommateSession((roommate as Roommate).id);
     if (!session.cookieSet) {
@@ -124,6 +132,22 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
     }
   } catch (error) {
     console.error("[auth:createRoom] error details:", error);
+
+    if (createdGroupId) {
+      try {
+        const cleanupClient = await createServerSupabaseClient();
+        const { error: cleanupError } = cleanupClient
+          ? await cleanupClient.from("groups").delete().eq("id", createdGroupId)
+          : { error: null };
+
+        if (cleanupError) {
+          console.error("[auth:createRoom] cleanup failed:", cleanupError);
+        }
+      } catch (cleanupError) {
+        console.error("[auth:createRoom] cleanup failed:", cleanupError);
+      }
+    }
+
     return actionError(error);
   }
 
