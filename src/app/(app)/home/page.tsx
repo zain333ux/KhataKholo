@@ -18,8 +18,10 @@ import { getDashboardData } from "@/lib/queries/dashboard";
 import { getMyKhata } from "@/lib/queries/khata";
 
 export default async function HomePage() {
-  const dashboard = await getDashboardData();
-  const khata = await getMyKhata();
+  const [dashboard, khata] = await Promise.all([
+    getDashboardData(),
+    getMyKhata(),
+  ]);
   const peopleIOwe = khata.filter((item) => item.direction === "i_owe");
   const peopleOweMe = khata.filter((item) => item.direction === "owes_me");
 

@@ -1,11 +1,13 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { RoommateListItem, RoommateNameMap } from "@/types/app";
 
 const publicRoommateColumns = "id, group_id, name, login_id, phone, role, is_active, created_at, updated_at";
 
-export async function getRoommatesForGroup(groupId: string): Promise<RoommateListItem[]> {
+async function getRoommatesForGroupUncached(groupId: string): Promise<RoommateListItem[]> {
   const supabase = await createServerSupabaseClient();
   if (!supabase) {
     return [];
@@ -24,6 +26,8 @@ export async function getRoommatesForGroup(groupId: string): Promise<RoommateLis
 
   return (data ?? []) as RoommateListItem[];
 }
+
+export const getRoommatesForGroup = cache(getRoommatesForGroupUncached);
 
 export async function getActiveRoommatesForGroup(groupId: string): Promise<RoommateListItem[]> {
   const roommates = await getRoommatesForGroup(groupId);

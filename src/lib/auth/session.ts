@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { getSessionTokenHash } from "@/lib/auth/session-token";
@@ -10,7 +11,7 @@ type RoommateWithGroup = Roommate & {
   groups: Pick<Group, "id" | "name" | "room_code"> | null;
 };
 
-export async function getCurrentRoommate(): Promise<CurrentRoommate | null> {
+async function getCurrentRoommateUncached(): Promise<CurrentRoommate | null> {
   const tokenHash = await getSessionTokenHash();
 
   if (!tokenHash) {
@@ -82,6 +83,8 @@ export async function getCurrentRoommate(): Promise<CurrentRoommate | null> {
     group: roommate.groups,
   };
 }
+
+export const getCurrentRoommate = cache(getCurrentRoommateUncached);
 
 export async function requireCurrentRoommate(): Promise<CurrentRoommate> {
   const roommate = await getCurrentRoommate();

@@ -31,9 +31,10 @@ type ExpenseMemberWithExpense = {
 
 export async function getDashboardData(): Promise<DashboardData> {
   const current = await requireCurrentRoommate();
-  const supabase = await createServerSupabaseClient();
-  const roommates = await getActiveRoommatesForGroup(current.group_id);
-  const names = makeRoommateNameMap(roommates);
+  const [supabase, roommates] = await Promise.all([
+    createServerSupabaseClient(),
+    getActiveRoommatesForGroup(current.group_id),
+  ]);
 
   if (!supabase) {
     return {
@@ -46,21 +47,35 @@ export async function getDashboardData(): Promise<DashboardData> {
     };
   }
 
-  const { data: balancesData } = await supabase
+  const names = makeRoommateNameMap(roommates);
+  const balancesQuery = supabase
     .from("balances")
     .select("id, debtor_roommate_id, creditor_roommate_id, amount_paisa, roommate_one_id, roommate_two_id")
     .eq("group_id", current.group_id)
     .or(`debtor_roommate_id.eq.${current.id},creditor_roommate_id.eq.${current.id}`);
-
-  const balances = (balancesData ?? []) as Balance[];
-  const totals = calculateBalanceTotals(current.id, balances);
-
-  const { data: memberData } = await supabase
+  const memberQuery = supabase
     .from("expense_members")
     .select("expenses(id, title, amount_paisa, expense_date, paid_by_roommate_id)")
     .eq("roommate_id", current.id)
     .order("created_at", { ascending: false })
     .limit(5);
+  const paymentsQuery = supabase
+    .from("payments")
+    .select("id, from_roommate_id, amount_paisa")
+    .eq("group_id", current.group_id)
+    .eq("to_roommate_id", current.id)
+    .eq("status", "pending_confirmation")
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  const [
+    { data: balancesData },
+    { data: memberData },
+    { data: paymentsData },
+  ] = await Promise.all([balancesQuery, memberQuery, paymentsQuery]);
+
+  const balances = (balancesData ?? []) as Balance[];
+  const totals = calculateBalanceTotals(current.id, balances);
 
   const recentExpenses = ((memberData ?? []) as unknown as ExpenseMemberWithExpense[])
     .map((row) => row.expenses)
@@ -73,15 +88,6 @@ export async function getDashboardData(): Promise<DashboardData> {
       paid_by_roommate_id: expense.paid_by_roommate_id,
       paidByName: names[expense.paid_by_roommate_id]?.name ?? "Roommate",
     }));
-
-  const { data: paymentsData } = await supabase
-    .from("payments")
-    .select("id, from_roommate_id, amount_paisa")
-    .eq("group_id", current.group_id)
-    .eq("to_roommate_id", current.id)
-    .eq("status", "pending_confirmation")
-    .order("created_at", { ascending: false })
-    .limit(5);
 
   const pendingConfirmations = ((paymentsData ?? []) as Payment[]).map((payment) => ({
     ...payment,
