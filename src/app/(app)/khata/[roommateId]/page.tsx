@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { formatRupees } from "@/lib/money";
+import { normalizePagination } from "@/lib/pagination";
 import { getPrivatePairHistory } from "@/lib/queries/khata";
 
 export default async function PairHistoryPage({
@@ -13,8 +14,7 @@ export default async function PairHistoryPage({
 }) {
   const { roommateId } = await params;
   const resolvedParams = await searchParams;
-  const page = Number(resolvedParams.page ?? "1");
-  const limit = 20;
+  const { page, limit } = normalizePagination(Number(resolvedParams.page ?? "1"), 20);
   const history = await getPrivatePairHistory(roommateId, page, limit);
   const hasNextPage = history.events.length === limit;
 
@@ -94,4 +94,3 @@ export default async function PairHistoryPage({
     </div>
   );
 }
-

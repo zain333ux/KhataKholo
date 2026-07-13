@@ -69,10 +69,15 @@ export async function getDashboardData(): Promise<DashboardData> {
     .limit(5);
 
   const [
-    { data: balancesData },
-    { data: memberData },
-    { data: paymentsData },
+    { data: balancesData, error: balancesError },
+    { data: memberData, error: memberError },
+    { data: paymentsData, error: paymentsError },
   ] = await Promise.all([balancesQuery, memberQuery, paymentsQuery]);
+
+  const dashboardError = balancesError ?? memberError ?? paymentsError;
+  if (dashboardError) {
+    throw new Error(`Could not load dashboard: ${dashboardError.message}`);
+  }
 
   const balances = (balancesData ?? []) as Balance[];
   const totals = calculateBalanceTotals(current.id, balances);
@@ -103,9 +108,13 @@ export async function getDashboardData(): Promise<DashboardData> {
     .order("created_at", { ascending: false })
     .limit(5);
 
-  const { data: disputesData } = recentExpenseIds.length > 0
+  const { data: disputesData, error: disputesError } = recentExpenseIds.length > 0
     ? await disputesQuery.or(`raised_by_roommate_id.eq.${current.id},expense_id.in.(${recentExpenseIds.join(",")})`)
     : await disputesQuery.eq("raised_by_roommate_id", current.id);
+
+  if (disputesError) {
+    throw new Error(`Could not load dashboard disputes: ${disputesError.message}`);
+  }
 
   const disputes = (disputesData ?? []) as DashboardDispute[];
 

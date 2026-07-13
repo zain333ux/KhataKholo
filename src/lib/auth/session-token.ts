@@ -83,3 +83,23 @@ export async function getSessionTokenHash(): Promise<string | null> {
 
   return hashSessionToken(token);
 }
+
+export async function revokeRoommateSessions(
+  roommateId: string,
+  exceptTokenHash?: string | null,
+): Promise<void> {
+  const supabase = await createServerSupabaseClient();
+  if (!supabase) {
+    throw new Error("Supabase is not configured yet.");
+  }
+
+  let query = supabase.from("roommate_sessions").delete().eq("roommate_id", roommateId);
+  if (exceptTokenHash) {
+    query = query.neq("token_hash", exceptTokenHash);
+  }
+
+  const { error } = await query;
+  if (error) {
+    throw new Error(`Could not revoke old sessions: ${error.message}`);
+  }
+}

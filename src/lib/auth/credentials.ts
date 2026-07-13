@@ -37,3 +37,25 @@ export function loginMatchesRoommate(input: string, loginId: string, phone: stri
     || Boolean(inputPhone && roommatePhone && inputPhone === roommatePhone)
   );
 }
+
+export type CredentialAliasOwner = {
+  id: string;
+  login_id: string;
+  phone: string | null;
+};
+
+export function hasCredentialAliasCollision(
+  loginId: string,
+  phone: string | null,
+  roommates: CredentialAliasOwner[],
+  excludedRoommateId?: string,
+): boolean {
+  const aliases = new Set([normalizeLoginId(loginId), normalizePhone(phone)].filter(Boolean));
+
+  return roommates.some((roommate) => {
+    if (roommate.id === excludedRoommateId) return false;
+
+    const existingAliases = [normalizeLoginId(roommate.login_id), normalizePhone(roommate.phone)];
+    return existingAliases.some((alias) => alias && aliases.has(alias));
+  });
+}

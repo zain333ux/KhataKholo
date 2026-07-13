@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { getActiveRoommatesForGroup, makeRoommateNameMap } from "@/lib/queries/roommates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { normalizePagination } from "@/lib/pagination";
 import type { Balance, Expense, Payment, Reminder, RoommateListItem } from "@/types/app";
 
 export type KhataItem = {
@@ -39,13 +40,17 @@ export async function getMyKhata(): Promise<KhataItem[]> {
     return [];
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("balances")
     .select("id, group_id, roommate_one_id, roommate_two_id, debtor_roommate_id, creditor_roommate_id, amount_paisa, created_at, updated_at")
     .eq("group_id", current.group_id)
     .gt("amount_paisa", 0)
     .or(`debtor_roommate_id.eq.${current.id},creditor_roommate_id.eq.${current.id}`)
     .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Could not load khata: ${error.message}`);
+  }
 
   return ((data ?? []) as Balance[]).map((balance) => {
     const otherRoommateId =
@@ -65,6 +70,7 @@ export async function getMyKhata(): Promise<KhataItem[]> {
 }
 
 export async function getPrivatePairHistory(otherRoommateId: string, page = 1, limit = 20): Promise<PairHistory> {
+  ({ page, limit } = normalizePagination(page, limit));
   const current = await requireCurrentRoommate();
   const supabase = await createServerSupabaseClient();
 
@@ -84,7 +90,7 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
 
   const fetchLimit = page * limit;
 
-  const { data: paymentsData } = await supabase
+  const paymentsQuery = supabase
     .from("payments")
     .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, created_at")
     .eq("group_id", current.group_id)
@@ -94,7 +100,7 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
 
-  const { data: remindersData } = await supabase
+  const remindersQuery = supabase
     .from("reminders")
     .select("id, from_roommate_id, to_roommate_id, amount_paisa, created_at")
     .eq("group_id", current.group_id)
@@ -104,24 +110,39 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
 
-  const { data: myExpenseMembers } = await supabase
+  const expenseMembersQuery = supabase
     .from("expense_members")
     .select("expense_id")
     .eq("roommate_id", current.id)
-    .limit(100);
+    .limit(1000);
+
+  const [
+    { data: paymentsData, error: paymentsError },
+    { data: remindersData, error: remindersError },
+    { data: myExpenseMembers, error: expenseMembersError },
+  ] = await Promise.all([paymentsQuery, remindersQuery, expenseMembersQuery]);
+
+  const pairQueryError = paymentsError ?? remindersError ?? expenseMembersError;
+  if (pairQueryError) {
+    throw new Error(`Could not load pair history: ${pairQueryError.message}`);
+  }
 
   const myExpenseIds = (myExpenseMembers ?? []).map((member) => member.expense_id);
-  const { data: otherExpenseMembers } = myExpenseIds.length > 0
+  const { data: otherExpenseMembers, error: otherExpenseMembersError } = myExpenseIds.length > 0
     ? await supabase
         .from("expense_members")
         .select("expense_id")
         .eq("roommate_id", otherRoommateId)
         .in("expense_id", myExpenseIds)
-        .limit(100)
-    : { data: [] };
+        .limit(1000)
+    : { data: [], error: null };
+
+  if (otherExpenseMembersError) {
+    throw new Error(`Could not load shared expenses: ${otherExpenseMembersError.message}`);
+  }
 
   const sharedExpenseIds = (otherExpenseMembers ?? []).map((member) => member.expense_id);
-  const { data: paidExpensesData } = sharedExpenseIds.length > 0
+  const { data: paidExpensesData, error: paidExpensesError } = sharedExpenseIds.length > 0
     ? await supabase
         .from("expenses")
         .select("id, title, amount_paisa, paid_by_roommate_id, created_at")
@@ -129,7 +150,11 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
         .in("id", sharedExpenseIds)
         .order("created_at", { ascending: false })
         .limit(fetchLimit)
-    : { data: [] };
+    : { data: [], error: null };
+
+  if (paidExpensesError) {
+    throw new Error(`Could not load shared expenses: ${paidExpensesError.message}`);
+  }
 
   const expenseEvents = ((paidExpensesData ?? []) as Expense[]).map((expense) => ({
     id: expense.id,

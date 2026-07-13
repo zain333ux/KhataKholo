@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actionError, assertTextLength } from "./forms";
+import { actionError, assertIsoDate, assertTextLength } from "./forms";
 
 describe("actionError", () => {
   it("turns low-level fetch failures into a useful service message", () => {
@@ -29,6 +29,12 @@ describe("actionError", () => {
       "Room name must be between 2 and 80 characters.",
     );
     expect(() => assertTextLength("Valid room", "Room name", 2, 80)).not.toThrow();
+  });
+
+  it("rejects malformed and impossible dates", () => {
+    expect(() => assertIsoDate("2026-02-28")).not.toThrow();
+    expect(() => assertIsoDate("2026-02-31")).toThrow("Date must be a valid date.");
+    expect(() => assertIsoDate("31-02-2026")).toThrow("Date must be a valid date.");
   });
 
   it("returns a specific message for duplicate roommate logins", () => {

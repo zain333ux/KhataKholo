@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { isValidPin, loginMatchesRoommate, normalizeLoginId, normalizePhone } from "@/lib/auth/credentials";
 import { logLoginDiagnostic } from "@/lib/auth/login-diagnostics";
 import { hashPin, verifyPin } from "@/lib/auth/pin";
-import { clearRoommateSession, createRoommateSession } from "@/lib/auth/session-token";
+import { clearRoommateSession, createRoommateSession, getSessionTokenHash, revokeRoommateSessions } from "@/lib/auth/session-token";
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -290,6 +290,8 @@ export async function changePinAction(_: ActionState, formData: FormData): Promi
     if (error) {
       throw new Error(error.message);
     }
+
+    await revokeRoommateSessions(current.id, await getSessionTokenHash());
 
     revalidatePath("/profile");
     return actionSuccess("PIN changed.");

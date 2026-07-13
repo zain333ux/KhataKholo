@@ -5,11 +5,14 @@ import { redirect } from "next/navigation";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { calculateEqualShares, validateCustomShares, type SplitShare } from "@/lib/calculations/splits";
+import { validateCloudinaryReceiptReference } from "@/lib/cloudinary";
+import { getCloudinaryEnv } from "@/lib/env";
 import { assertPositiveMoney, MAX_MONEY_PAISA, rupeesToPaisa } from "@/lib/money";
 import { getActiveRoommatesForGroup } from "@/lib/queries/roommates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
+  assertIsoDate,
   assertTextLength,
   actionSuccess,
   getAllText,
@@ -43,6 +46,8 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
     const receiptUrl = getText(formData, "receiptUrl") || null;
     const receiptPublicId = getText(formData, "receiptPublicId") || null;
 
+    assertIsoDate(expenseDate, "Expense date");
+
     const amountError = assertPositiveMoney(amountPaisa);
     if (amountError) {
       throw new Error(amountError);
@@ -63,6 +68,19 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
     if (selectedRoommateIds.length === 0) {
       throw new Error("Select at least one included roommate.");
     }
+
+    if (new Set(selectedRoommateIds).size !== selectedRoommateIds.length) {
+      throw new Error("Each included roommate can only be selected once.");
+    }
+
+    const cloudinary = getCloudinaryEnv();
+    if ((receiptUrl || receiptPublicId) && !cloudinary) {
+      throw new Error("Receipt uploads are temporarily unavailable.");
+    }
+    const receiptError = cloudinary
+      ? validateCloudinaryReceiptReference(receiptUrl, receiptPublicId, cloudinary.cloudName)
+      : null;
+    if (receiptError) throw new Error(receiptError);
 
     const invalidSelected = selectedRoommateIds.find((roommateId) => !roommateIds.has(roommateId));
     if (invalidSelected) {
@@ -136,9 +154,14 @@ export async function raiseDisputeAction(_: ActionState, formData: FormData): Pr
     const correctionText = getText(formData, "suggestedCorrection");
     const suggestedCorrectionPaisa = correctionText ? rupeesToPaisa(correctionText) : null;
 
+    assertTextLength(reason, "Reason", 5, 500);
+
     if (extraNote) {
       assertTextLength(extraNote, "Extra note", 1, 400);
     }
+
+    const fullReason = extraNote ? `${reason} ${extraNote}` : reason;
+    assertTextLength(fullReason, "Dispute reason", 5, 500);
 
     if (suggestedCorrectionPaisa !== null && (!Number.isInteger(suggestedCorrectionPaisa) || suggestedCorrectionPaisa < 0 || suggestedCorrectionPaisa > MAX_MONEY_PAISA)) {
       throw new Error("Suggested correction must be a valid amount.");
@@ -160,12 +183,16 @@ export async function raiseDisputeAction(_: ActionState, formData: FormData): Pr
       throw new Error("Expense not found.");
     }
 
-    const { data: memberData } = await supabase
+    const { data: memberData, error: memberError } = await supabase
       .from("expense_members")
       .select("id")
       .eq("expense_id", expense.id)
       .eq("roommate_id", current.id)
       .maybeSingle();
+
+    if (memberError) {
+      throw new Error(memberError.message);
+    }
 
     if (!memberData) {
       throw new Error("Only included roommates can raise a dispute.");
@@ -175,7 +202,7 @@ export async function raiseDisputeAction(_: ActionState, formData: FormData): Pr
       expense_id: expense.id,
       group_id: expense.group_id,
       raised_by_roommate_id: current.id,
-      reason: extraNote ? `${reason} ${extraNote}` : reason,
+      reason: fullReason,
       suggested_correction_paisa: suggestedCorrectionPaisa,
       status: "pending",
     });

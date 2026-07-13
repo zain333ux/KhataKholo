@@ -3,6 +3,7 @@ import "server-only";
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { getActiveRoommatesForGroup, makeRoommateNameMap } from "@/lib/queries/roommates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { normalizePagination } from "@/lib/pagination";
 import type { Dispute, Expense, Payment, Reminder } from "@/types/app";
 
 export type HistoryEvent = {
@@ -21,6 +22,7 @@ type ExpenseMemberWithExpense = {
 };
 
 export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEvent[]> {
+  ({ page, limit } = normalizePagination(page, limit));
   const current = await requireCurrentRoommate();
   const [supabase, roommates] = await Promise.all([
     createServerSupabaseClient(),

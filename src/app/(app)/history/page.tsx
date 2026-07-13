@@ -9,6 +9,7 @@ import Link from "next/link";
 
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { formatRupees } from "@/lib/money";
+import { normalizePagination } from "@/lib/pagination";
 import { getHistoryEvents } from "@/lib/queries/history";
 
 const eventConfig = {
@@ -40,8 +41,7 @@ export default async function HistoryPage({
   searchParams: Promise<{ page?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const page = Number(resolvedParams.page ?? "1");
-  const limit = 20;
+  const { page, limit } = normalizePagination(Number(resolvedParams.page ?? "1"), 20);
   const events = await getHistoryEvents(page, limit);
   const grouped = groupByDate(events);
   const hasNextPage = events.length === limit;

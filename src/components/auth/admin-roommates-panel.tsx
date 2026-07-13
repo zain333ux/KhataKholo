@@ -20,6 +20,7 @@ export function AdminRoommatesPanel({ roommates }: { roommates: RoommateListItem
   const [addState, addAction, addPending] = useActionState(addRoommateAction, emptyActionState);
   const [updateState, updateAction, updatePending] = useActionState(updateRoommateAction, emptyActionState);
   const [resetState, resetAction, resetPending] = useActionState(resetRoommatePinAction, emptyActionState);
+  const [deactivateState, deactivateAction, deactivatePending] = useActionState(deactivateRoommateAction, emptyActionState);
 
   return (
     <div className="grid gap-4">
@@ -71,6 +72,7 @@ export function AdminRoommatesPanel({ roommates }: { roommates: RoommateListItem
 
       <ActionMessage state={updateState} />
       <ActionMessage state={resetState} />
+      <ActionMessage state={deactivateState} />
 
       {roommates.map((roommate) => (
         <Card key={roommate.id} className="grid gap-3">
@@ -127,9 +129,16 @@ export function AdminRoommatesPanel({ roommates }: { roommates: RoommateListItem
             </Button>
           </form>
 
-          <form action={deactivateRoommateAction}>
+          <form
+            action={deactivateAction}
+            onSubmit={(event) => {
+              if (!window.confirm(`Remove ${roommate.name}? They will no longer be able to log in.`)) {
+                event.preventDefault();
+              }
+            }}
+          >
             <input type="hidden" name="roommateId" value={roommate.id} />
-            <Button type="submit" variant="ghost" className="w-full text-rose-700" disabled={!roommate.is_active}>
+            <Button type="submit" variant="ghost" className="w-full text-rose-700" disabled={deactivatePending || !roommate.is_active}>
               <UserMinus size={18} />
               Remove roommate
             </Button>

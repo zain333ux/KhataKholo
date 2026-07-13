@@ -27,13 +27,17 @@ async function getCurrentBalanceAmount(
     return 0;
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("balances")
     .select("*")
     .eq("group_id", current.group_id)
     .eq("debtor_roommate_id", debtorRoommateId)
     .eq("creditor_roommate_id", creditorRoommateId)
     .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   return ((data as Balance | null)?.amount_paisa ?? 0);
 }
