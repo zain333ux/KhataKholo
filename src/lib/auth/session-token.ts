@@ -27,6 +27,15 @@ export async function createRoommateSession(roommateId: string): Promise<Session
   const tokenHash = hashSessionToken(token);
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
+  const { error: cleanupError } = await supabase
+    .from("roommate_sessions")
+    .delete()
+    .lt("expires_at", new Date().toISOString());
+
+  if (cleanupError) {
+    console.error("[auth:session] expired-session cleanup failed:", cleanupError);
+  }
+
   const { error } = await supabase.from("roommate_sessions").insert({
     roommate_id: roommateId,
     token_hash: tokenHash,

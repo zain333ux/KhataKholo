@@ -44,7 +44,7 @@ export function CreateRoomForm() {
   return (
     <form action={formAction} className="grid gap-4">
       <Field label="Room name">
-        <Input name="roomName" placeholder="Hostel Room 12" required />
+        <Input name="roomName" minLength={2} maxLength={80} placeholder="Hostel Room 12" required />
       </Field>
       <Field 
         label="Room code" 
@@ -63,10 +63,10 @@ export function CreateRoomForm() {
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Your name">
-          <Input name="name" autoComplete="name" placeholder="Ali" required />
+          <Input name="name" minLength={2} maxLength={80} autoComplete="name" placeholder="Ali" required />
         </Field>
         <Field label="Username or phone" hint="This will be used to login.">
-          <Input name="loginId" autoComplete="username" placeholder="ali or 03001234567" required />
+          <Input name="loginId" minLength={2} maxLength={80} autoComplete="username" placeholder="ali or 03001234567" required />
         </Field>
       </div>
       <Field label="Phone (optional)">
@@ -102,4 +102,3 @@ export function CreateRoomForm() {
     </form>
   );
 }
-

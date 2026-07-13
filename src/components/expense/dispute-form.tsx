@@ -33,7 +33,7 @@ export function DisputeForm({ expenseId }: { expenseId: string }) {
           <Input name="suggestedCorrection" inputMode="decimal" placeholder="300" />
         </Field>
         <Field label="Extra note optional">
-          <Textarea name="extraNote" placeholder="Write a short note for context" />
+          <Textarea name="extraNote" maxLength={400} placeholder="Write a short note for context" />
         </Field>
         <ActionMessage state={state} />
         <Button type="submit" variant="secondary" disabled={isPending}>
@@ -44,4 +44,3 @@ export function DisputeForm({ expenseId }: { expenseId: string }) {
     </Card>
   );
 }
-

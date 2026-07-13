@@ -12,6 +12,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
   actionSuccess,
+  assertTextLength,
   type ActionState,
   getRequiredText,
   getText,
@@ -67,6 +68,7 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
     }
 
     const roomName = getRequiredText(formData, "roomName", "Room name");
+    assertTextLength(roomName, "Room name", 2, 80);
     const rawRoomCode = getRequiredText(formData, "roomCode", "Room code");
     const roomCode = rawRoomCode.toUpperCase().replace(/\s/g, "");
 
@@ -75,7 +77,9 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
     }
 
     const name = getRequiredText(formData, "name", "Your name");
+    assertTextLength(name, "Your name", 2, 80);
     const loginId = normalizeLoginId(getRequiredText(formData, "loginId", "Username or phone"));
+    assertTextLength(loginId, "Username or phone", 2, 80);
     const phone = normalizePhone(getText(formData, "phone"));
     const pin = getRequiredText(formData, "pin", "PIN");
 
@@ -131,7 +135,12 @@ export async function createRoomAction(_: ActionState, formData: FormData): Prom
       throw new Error("Could not set login cookie. Please try again.");
     }
   } catch (error) {
-    console.error("[auth:createRoom] error details:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (/constraint|duplicate key|required|must be/i.test(message)) {
+      console.warn("[auth:createRoom] rejected input:", message);
+    } else {
+      console.error("[auth:createRoom] error details:", error);
+    }
 
     if (createdGroupId) {
       try {

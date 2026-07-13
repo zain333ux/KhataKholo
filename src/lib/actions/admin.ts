@@ -9,6 +9,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
   actionSuccess,
+  assertTextLength,
   getRequiredText,
   getText,
   type ActionState,
@@ -26,7 +27,9 @@ export async function addRoommateAction(_: ActionState, formData: FormData): Pro
     }
 
     const name = getRequiredText(formData, "name", "Name");
+    assertTextLength(name, "Name", 2, 80);
     const loginId = normalizeLoginId(getRequiredText(formData, "loginId", "Username or phone"));
+    assertTextLength(loginId, "Username or phone", 2, 80);
     const phone = normalizePhone(getText(formData, "phone"));
     const pin = getRequiredText(formData, "pin", "PIN");
     const role = (getText(formData, "role") || "member") as RoommateRole;
@@ -71,6 +74,7 @@ export async function updateRoommateAction(_: ActionState, formData: FormData): 
 
     const roommateId = getRequiredText(formData, "roommateId", "Roommate");
     const name = getRequiredText(formData, "name", "Name");
+    assertTextLength(name, "Name", 2, 80);
     const phone = normalizePhone(getText(formData, "phone"));
     const role = (getText(formData, "role") || "member") as RoommateRole;
 
@@ -78,14 +82,24 @@ export async function updateRoommateAction(_: ActionState, formData: FormData): 
       throw new Error("Invalid role.");
     }
 
-    const { error } = await supabase
+    if (roommateId === current.id && role !== "admin") {
+      throw new Error("You cannot remove your own admin role.");
+    }
+
+    const { data: updated, error } = await supabase
       .from("roommates")
       .update({ name, phone, role })
       .eq("id", roommateId)
-      .eq("group_id", current.group_id);
+      .eq("group_id", current.group_id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (!updated) {
+      throw new Error("Roommate not found.");
     }
 
     revalidatePath("/admin/roommates");
@@ -109,11 +123,21 @@ export async function deactivateRoommateAction(formData: FormData) {
     throw new Error("You cannot remove yourself.");
   }
 
-  await supabase
+  const { data: deactivated, error } = await supabase
     .from("roommates")
     .update({ is_active: false })
     .eq("id", roommateId)
-    .eq("group_id", current.group_id);
+    .eq("group_id", current.group_id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!deactivated) {
+    throw new Error("Roommate not found.");
+  }
 
   revalidatePath("/admin/roommates");
 }
@@ -135,14 +159,20 @@ export async function resetRoommatePinAction(_: ActionState, formData: FormData)
       throw new Error("PIN must be exactly 6 digits.");
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("roommates")
       .update({ pin_hash: await hashPin(newPin) })
       .eq("id", roommateId)
-      .eq("group_id", current.group_id);
+      .eq("group_id", current.group_id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (!updated) {
+      throw new Error("Roommate not found.");
     }
 
     return actionSuccess("PIN reset.");
@@ -150,4 +180,3 @@ export async function resetRoommatePinAction(_: ActionState, formData: FormData)
     return actionError(error);
   }
 }
-

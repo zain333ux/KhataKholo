@@ -1,4 +1,5 @@
 const moneyFormatter = new Intl.NumberFormat("en-PK");
+export const MAX_MONEY_PAISA = 2_000_000_000;
 
 export function rupeesToPaisa(value: FormDataEntryValue | string | number | null): number {
   const text = String(value ?? "").trim().replace(/,/g, "");
@@ -35,6 +36,9 @@ export function assertPositiveMoney(amountPaisa: number, label = "Amount"): stri
     return `${label} must be greater than zero.`;
   }
 
+  if (amountPaisa > MAX_MONEY_PAISA) {
+    return `${label} is too large.`;
+  }
+
   return null;
 }
-

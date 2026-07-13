@@ -27,7 +27,7 @@ export function PaymentActionForm({ mode, otherRoommateId, maxAmountPaisa }: Pay
       <Field label={isRecord ? "Amount received" : "Amount paid"}>
         <Input name="amount" inputMode="decimal" defaultValue={paisaToRupees(maxAmountPaisa)} required />
       </Field>
-      <Input name="note" placeholder="Note optional" />
+      <Input name="note" maxLength={500} placeholder="Note optional" />
       <ActionMessage state={state} />
       <Button type="submit" variant={isRecord ? "primary" : "secondary"} disabled={isPending}>
         {isRecord ? <CheckCircle2 size={18} /> : <Send size={18} />}
@@ -36,4 +36,3 @@ export function PaymentActionForm({ mode, otherRoommateId, maxAmountPaisa }: Pay
     </form>
   );
 }
-

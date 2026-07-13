@@ -30,10 +30,10 @@ export function AdminRoommatesPanel({ roommates }: { roommates: RoommateListItem
         </div>
         <form action={addAction} className="grid gap-3">
           <Field label="Name">
-            <Input name="name" placeholder="Bilal" required />
+            <Input name="name" minLength={2} maxLength={80} placeholder="Bilal" required />
           </Field>
           <Field label="Username or phone">
-            <Input name="loginId" placeholder="bilal or 03001234567" required />
+            <Input name="loginId" minLength={2} maxLength={80} placeholder="bilal or 03001234567" required />
           </Field>
           <Field label="Phone optional">
             <Input name="phone" inputMode="tel" />
@@ -88,7 +88,7 @@ export function AdminRoommatesPanel({ roommates }: { roommates: RoommateListItem
           <form action={updateAction} className="grid gap-3">
             <input type="hidden" name="roommateId" value={roommate.id} />
             <Field label="Name">
-              <Input name="name" defaultValue={roommate.name} required />
+              <Input name="name" minLength={2} maxLength={80} defaultValue={roommate.name} required />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Phone">

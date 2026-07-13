@@ -5,11 +5,12 @@ import { redirect } from "next/navigation";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { calculateEqualShares, validateCustomShares, type SplitShare } from "@/lib/calculations/splits";
-import { rupeesToPaisa } from "@/lib/money";
+import { assertPositiveMoney, MAX_MONEY_PAISA, rupeesToPaisa } from "@/lib/money";
 import { getActiveRoommatesForGroup } from "@/lib/queries/roommates";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
+  assertTextLength,
   actionSuccess,
   getAllText,
   getRequiredText,
@@ -32,6 +33,7 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
     const roommateIds = new Set(roommates.map((roommate) => roommate.id));
 
     const title = getRequiredText(formData, "title", "Title");
+    assertTextLength(title, "Title", 2, 120);
     const amountPaisa = rupeesToPaisa(getRequiredText(formData, "amount", "Amount"));
     const paidByRoommateId = getRequiredText(formData, "paidByRoommateId", "Paid by");
     const selectedRoommateIds = getAllText(formData, "memberIds");
@@ -41,8 +43,13 @@ export async function createExpenseAction(_: ActionState, formData: FormData): P
     const receiptUrl = getText(formData, "receiptUrl") || null;
     const receiptPublicId = getText(formData, "receiptPublicId") || null;
 
-    if (!Number.isInteger(amountPaisa) || amountPaisa <= 0) {
-      throw new Error("Amount must be greater than zero.");
+    const amountError = assertPositiveMoney(amountPaisa);
+    if (amountError) {
+      throw new Error(amountError);
+    }
+
+    if (note) {
+      assertTextLength(note, "Note", 1, 500);
     }
 
     if (!["equal", "custom"].includes(splitType)) {
@@ -129,7 +136,11 @@ export async function raiseDisputeAction(_: ActionState, formData: FormData): Pr
     const correctionText = getText(formData, "suggestedCorrection");
     const suggestedCorrectionPaisa = correctionText ? rupeesToPaisa(correctionText) : null;
 
-    if (suggestedCorrectionPaisa !== null && (!Number.isInteger(suggestedCorrectionPaisa) || suggestedCorrectionPaisa < 0)) {
+    if (extraNote) {
+      assertTextLength(extraNote, "Extra note", 1, 400);
+    }
+
+    if (suggestedCorrectionPaisa !== null && (!Number.isInteger(suggestedCorrectionPaisa) || suggestedCorrectionPaisa < 0 || suggestedCorrectionPaisa > MAX_MONEY_PAISA)) {
       throw new Error("Suggested correction must be a valid amount.");
     }
 

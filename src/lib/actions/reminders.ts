@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
-import { rupeesToPaisa } from "@/lib/money";
+import { assertPositiveMoney, rupeesToPaisa } from "@/lib/money";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
   actionSuccess,
+  assertTextLength,
   getRequiredText,
   type ActionState,
 } from "@/lib/validators/forms";
@@ -24,8 +25,14 @@ export async function sendReminderAction(_: ActionState, formData: FormData): Pr
     const toRoommateId = getRequiredText(formData, "toRoommateId", "Roommate");
     const amountPaisa = rupeesToPaisa(getRequiredText(formData, "amount", "Amount"));
     const message = getRequiredText(formData, "message", "Message");
+    assertTextLength(message, "Message", 5, 500);
 
-    const { data: balanceData } = await supabase
+    const amountError = assertPositiveMoney(amountPaisa, "Reminder amount");
+    if (amountError) {
+      throw new Error(amountError);
+    }
+
+    const { data: balanceData, error: balanceError } = await supabase
       .from("balances")
       .select("amount_paisa")
       .eq("group_id", current.group_id)
@@ -33,13 +40,17 @@ export async function sendReminderAction(_: ActionState, formData: FormData): Pr
       .eq("creditor_roommate_id", current.id)
       .maybeSingle();
 
+    if (balanceError) {
+      throw new Error(balanceError.message);
+    }
+
     const balance = balanceData as Balance | null;
 
     if (!balance || balance.amount_paisa <= 0) {
       throw new Error("You can only remind roommates who owe you.");
     }
 
-    if (amountPaisa <= 0 || amountPaisa > balance.amount_paisa) {
+    if (amountPaisa > balance.amount_paisa) {
       throw new Error("Reminder amount must match a pending balance.");
     }
 
@@ -62,4 +73,3 @@ export async function sendReminderAction(_: ActionState, formData: FormData): Pr
     return actionError(error);
   }
 }
-

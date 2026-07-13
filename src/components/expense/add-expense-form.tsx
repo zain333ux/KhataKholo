@@ -163,7 +163,7 @@ export function AddExpenseForm({
         </div>
 
         <Field label="Title">
-          <Input name="title" placeholder="Dinner, milk, electricity bill…" required />
+          <Input name="title" minLength={2} maxLength={120} placeholder="Dinner, milk, electricity bill…" required />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -210,7 +210,7 @@ export function AddExpenseForm({
         </div>
 
         <Field label="Note (optional)">
-          <Textarea name="note" placeholder="Any helpful detail for roommates…" />
+          <Textarea name="note" maxLength={500} placeholder="Any helpful detail for roommates…" />
         </Field>
       </Card>
 

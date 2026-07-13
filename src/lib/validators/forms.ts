@@ -22,6 +22,12 @@ export function getRequiredText(formData: FormData, key: string, label: string):
   return value;
 }
 
+export function assertTextLength(value: string, label: string, min: number, max: number): void {
+  if (value.length < min || value.length > max) {
+    throw new Error(`${label} must be between ${min} and ${max} characters.`);
+  }
+}
+
 export function getAllText(formData: FormData, key: string): string[] {
   return formData
     .getAll(key)
@@ -40,11 +46,26 @@ export function actionError(error: unknown): ActionState {
       };
     }
 
-    if (/duplicate key|groups_room_code_key/i.test(message)) {
+    if (/groups_room_code_key/i.test(message)) {
       return {
         ok: false,
         message: "That room code is already in use. Please choose another one.",
       };
+    }
+
+    if (/roommates_group_login_unique/i.test(message)) {
+      return {
+        ok: false,
+        message: "That username or phone is already used in this room.",
+      };
+    }
+
+    if (/duplicate key/i.test(message)) {
+      return { ok: false, message: "That value is already in use." };
+    }
+
+    if (/groups_name_check/i.test(message)) {
+      return { ok: false, message: "Room name must be between 2 and 80 characters." };
     }
 
     return { ok: false, message };

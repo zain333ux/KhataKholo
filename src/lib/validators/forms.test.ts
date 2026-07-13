@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { actionError } from "./forms";
+import { actionError, assertTextLength } from "./forms";
 
 describe("actionError", () => {
   it("turns low-level fetch failures into a useful service message", () => {
@@ -21,6 +21,20 @@ describe("actionError", () => {
     expect(actionError(new Error("PIN must be exactly 6 digits."))).toEqual({
       ok: false,
       message: "PIN must be exactly 6 digits.",
+    });
+  });
+
+  it("validates text lengths before database constraints", () => {
+    expect(() => assertTextLength("A", "Room name", 2, 80)).toThrow(
+      "Room name must be between 2 and 80 characters.",
+    );
+    expect(() => assertTextLength("Valid room", "Room name", 2, 80)).not.toThrow();
+  });
+
+  it("returns a specific message for duplicate roommate logins", () => {
+    expect(actionError(new Error('duplicate key violates "roommates_group_login_unique"'))).toEqual({
+      ok: false,
+      message: "That username or phone is already used in this room.",
     });
   });
 });

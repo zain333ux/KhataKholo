@@ -19,7 +19,7 @@ export async function getPendingPaymentConfirmations(): Promise<PaymentConfirmat
     return [];
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("payments")
     .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, note, created_at")
     .eq("group_id", current.group_id)
@@ -28,9 +28,12 @@ export async function getPendingPaymentConfirmations(): Promise<PaymentConfirmat
     .order("created_at", { ascending: false })
     .limit(50);
 
+  if (error) {
+    throw new Error(`Could not load payment confirmations: ${error.message}`);
+  }
+
   return ((data ?? []) as Payment[]).map((payment) => ({
     ...payment,
     fromName: names[payment.from_roommate_id]?.name ?? "Roommate",
   }));
 }
-

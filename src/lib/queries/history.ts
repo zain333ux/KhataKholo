@@ -22,22 +22,49 @@ type ExpenseMemberWithExpense = {
 
 export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEvent[]> {
   const current = await requireCurrentRoommate();
-  const supabase = await createServerSupabaseClient();
-  const roommates = await getActiveRoommatesForGroup(current.group_id);
-  const names = makeRoommateNameMap(roommates);
+  const [supabase, roommates] = await Promise.all([
+    createServerSupabaseClient(),
+    getActiveRoommatesForGroup(current.group_id),
+  ]);
 
   if (!supabase) {
     return [];
   }
 
+  const names = makeRoommateNameMap(roommates);
   const fetchLimit = page * limit;
 
-  const { data: expenseMemberData } = await supabase
+  const expenseMembersQuery = supabase
     .from("expense_members")
     .select("expenses(id, title, amount_paisa, expense_date, paid_by_roommate_id, created_at)")
     .eq("roommate_id", current.id)
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
+  const paymentsQuery = supabase
+    .from("payments")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, created_at")
+    .eq("group_id", current.group_id)
+    .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
+    .order("created_at", { ascending: false })
+    .limit(fetchLimit);
+  const remindersQuery = supabase
+    .from("reminders")
+    .select("id, from_roommate_id, to_roommate_id, amount_paisa, created_at")
+    .eq("group_id", current.group_id)
+    .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
+    .order("created_at", { ascending: false })
+    .limit(fetchLimit);
+
+  const [
+    { data: expenseMemberData, error: expenseMemberError },
+    { data: paymentData, error: paymentError },
+    { data: reminderData, error: reminderError },
+  ] = await Promise.all([expenseMembersQuery, paymentsQuery, remindersQuery]);
+
+  const queryError = expenseMemberError ?? paymentError ?? reminderError;
+  if (queryError) {
+    throw new Error(`Could not load history: ${queryError.message}`);
+  }
 
   const expenseEvents = ((expenseMemberData ?? []) as unknown as ExpenseMemberWithExpense[])
     .map((row) => row.expenses)
@@ -51,14 +78,6 @@ export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEve
       href: `/expenses/${expense.id}`,
       createdAt: expense.created_at,
     }));
-
-  const { data: paymentData } = await supabase
-    .from("payments")
-    .select("id, from_roommate_id, to_roommate_id, amount_paisa, status, created_at")
-    .eq("group_id", current.group_id)
-    .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
-    .order("created_at", { ascending: false })
-    .limit(fetchLimit);
 
   const paymentEvents = ((paymentData ?? []) as Payment[]).map((payment) => {
     const otherId = payment.from_roommate_id === current.id ? payment.to_roommate_id : payment.from_roommate_id;
@@ -83,9 +102,13 @@ export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEve
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
 
-  const { data: disputeData } = expenseIds.length > 0
+  const { data: disputeData, error: disputeError } = expenseIds.length > 0
     ? await disputesQuery.or(`raised_by_roommate_id.eq.${current.id},expense_id.in.(${expenseIds.join(",")})`)
     : await disputesQuery.eq("raised_by_roommate_id", current.id);
+
+  if (disputeError) {
+    throw new Error(`Could not load disputes: ${disputeError.message}`);
+  }
 
   const disputeEvents = ((disputeData ?? []) as Dispute[]).map((dispute) => ({
     id: dispute.id,
@@ -97,14 +120,6 @@ export async function getHistoryEvents(page = 1, limit = 20): Promise<HistoryEve
     href: `/expenses/${dispute.expense_id}`,
     createdAt: dispute.created_at,
   }));
-
-  const { data: reminderData } = await supabase
-    .from("reminders")
-    .select("id, from_roommate_id, to_roommate_id, amount_paisa, created_at")
-    .eq("group_id", current.group_id)
-    .or(`from_roommate_id.eq.${current.id},to_roommate_id.eq.${current.id}`)
-    .order("created_at", { ascending: false })
-    .limit(fetchLimit);
 
   const reminderEvents = ((reminderData ?? []) as Reminder[]).map((reminder) => {
     const otherId = reminder.from_roommate_id === current.id ? reminder.to_roommate_id : reminder.from_roommate_id;

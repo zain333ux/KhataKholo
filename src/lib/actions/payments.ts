@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { requireCurrentRoommate } from "@/lib/auth/session";
 import { validatePaymentReduction } from "@/lib/calculations/balances";
-import { rupeesToPaisa } from "@/lib/money";
+import { assertPositiveMoney, rupeesToPaisa } from "@/lib/money";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   actionError,
   actionSuccess,
+  assertTextLength,
   getRequiredText,
   getText,
   type ActionState,
@@ -48,6 +49,13 @@ export async function recordPaymentReceivedAction(_: ActionState, formData: Form
     const fromRoommateId = getRequiredText(formData, "fromRoommateId", "Paying roommate");
     const amountPaisa = rupeesToPaisa(getRequiredText(formData, "amount", "Amount"));
     const note = getText(formData, "note") || null;
+    if (note) {
+      assertTextLength(note, "Note", 1, 500);
+    }
+    const amountError = assertPositiveMoney(amountPaisa);
+    if (amountError) {
+      throw new Error(amountError);
+    }
     const currentBalance = await getCurrentBalanceAmount(fromRoommateId, current.id);
     const validationError = validatePaymentReduction(currentBalance, amountPaisa);
 
@@ -86,6 +94,13 @@ export async function requestPaymentUpdateAction(_: ActionState, formData: FormD
     const toRoommateId = getRequiredText(formData, "toRoommateId", "Receiver");
     const amountPaisa = rupeesToPaisa(getRequiredText(formData, "amount", "Amount"));
     const note = getText(formData, "note") || null;
+    if (note) {
+      assertTextLength(note, "Note", 1, 500);
+    }
+    const amountError = assertPositiveMoney(amountPaisa);
+    if (amountError) {
+      throw new Error(amountError);
+    }
     const currentBalance = await getCurrentBalanceAmount(current.id, toRoommateId);
     const validationError = validatePaymentReduction(currentBalance, amountPaisa);
 
@@ -170,7 +185,7 @@ export async function disputePaymentAction(formData: FormData) {
   const paymentId = getRequiredText(formData, "paymentId", "Payment");
   const note = getText(formData, "note") || "Payment disputed by receiver.";
 
-  await supabase
+  const { data: disputed, error } = await supabase
     .from("payments")
     .update({
       status: "disputed",
@@ -179,7 +194,17 @@ export async function disputePaymentAction(formData: FormData) {
     })
     .eq("id", paymentId)
     .eq("to_roommate_id", current.id)
-    .eq("status", "pending_confirmation");
+    .eq("status", "pending_confirmation")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!disputed) {
+    throw new Error("Payment request not found or already handled.");
+  }
 
   revalidatePath("/payments/confirmations");
   revalidatePath("/home");
