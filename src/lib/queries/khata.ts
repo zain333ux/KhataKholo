@@ -81,9 +81,11 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
   const roommates = await getActiveRoommatesForGroup(current.group_id);
   const otherRoommate = roommates.find((roommate) => roommate.id === otherRoommateId);
 
-  if (!otherRoommate) {
+  if (!otherRoommate || otherRoommate.id === current.id) {
     notFound();
   }
+
+  const names = makeRoommateNameMap(roommates);
 
   const myKhata = await getMyKhata();
   const balance = myKhata.find((item) => item.otherRoommate.id === otherRoommateId) ?? null;
@@ -160,7 +162,7 @@ export async function getPrivatePairHistory(otherRoommateId: string, page = 1, l
     id: expense.id,
     type: "expense" as const,
     title: expense.title,
-    body: `Paid by ${expense.paid_by_roommate_id === current.id ? "you" : otherRoommate.name}`,
+    body: `Paid by ${expense.paid_by_roommate_id === current.id ? "you" : names[expense.paid_by_roommate_id]?.name ?? "Roommate"}`,
     amountPaisa: expense.amount_paisa,
     createdAt: expense.created_at,
   }));
